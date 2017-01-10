@@ -4,7 +4,7 @@
         Wang-Landau method for different magnetic systems
 
            programmed by:
-           	Makarov Alexander
+           	Makarov Aleksandr
            	Andriushchenko Petr
            	Shevchenko Yuriy
 
