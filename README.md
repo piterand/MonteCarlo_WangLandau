@@ -13,13 +13,13 @@
 
 # Литература
 
-\[1\] Vogel T. et al. Generic, 
+\[1\] [Vogel T. et al.](papers/base_parallel_brief.pdf) Generic, 
 hierarchical framework for massively parallel Wang-Landau 
 sampling //Physical review letters. – 2013. – Т. 110. – №. 21. – С. 210603.
 
-\[2\] Vogel T. et al. Scalable replica-exchange 
+\[2\] [Vogel T. et al.](papers/base_parallel_full.pdf) Scalable replica-exchange 
 framework for Wang-Landau sampling //
 Physical Review E. – 2014. – Т. 90. – №. 2. – С. 023302.
 
-\[3\] Параллельный алгоритм Ванга-Ландау и теплоемкость 
-квадратного суперспинового льда, https://www.overleaf.com/4677487kzcgkt
+\[3\] [Параллельный алгоритм Ванга-Ландау и теплоемкость 
+квадратного суперспинового льда, https://www.overleaf.com/4677487kzcgkt](https://www.overleaf.com/4677487kzcgkt)
