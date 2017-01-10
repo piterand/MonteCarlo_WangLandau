@@ -79,7 +79,8 @@ int main(void)
 
     scanf("%lf",&p);
 
-    srand48(iri1);
+//    srand48(iri1);
+    srand(iri1);
 
     period();
     spinset();
@@ -101,7 +102,8 @@ int main(void)
       hist[ie]=0;
     }
 
-    srand48(iri2);
+//  srand48(iri2);
+    srand(iri2);
     mc();
     normalize();
 
@@ -163,7 +165,8 @@ void spinset()
       ihole = 0;
       for (la1=0; la1 <= 50*nla-1; la1++){
         if(ihole>=nhole){break;}
-        la=lrand48()%nla;
+        //la=lrand48()%nla;
+        la=rand()%nla;
         if(isp[la]!=0)
         {
           isp[la]=0;
@@ -185,7 +188,10 @@ void spinset()
 //
       nhole = 0;
       for (la=0; la <= nla-1; la++){
-        if(drand48()<p){
+        if(
+                //drand48()<p
+                (rand()/RAND_MAX) < p
+                ){
           isp[la]=0;
           nhole++;
         }
@@ -316,7 +322,8 @@ void single()
   double ga,gb;
 
   for(la1=0; la1 <= nla-1; la1++){
-    la=lrand48()%nla;
+    //la=lrand48()%nla;
+      la=rand()%nla;
     isp1 = isp[la];
 
     if(isp[la]!=0){
@@ -329,7 +336,10 @@ void single()
         ga = g[(energy+3*nla)];
         gb = g[(energyn+3*nla)];
 
-        if(exp(ga-gb) > drand48()){
+        if(exp(ga-gb) >
+                //drand48()
+                rand()/RAND_MAX
+                ){
           isp[la] = -isp1;
           energy  = energyn;
         }
