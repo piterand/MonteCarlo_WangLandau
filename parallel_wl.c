@@ -71,6 +71,17 @@ int main(void)
     }
     printf("\n");
 
+    
+    
+    printf("\ne = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
+    
+    rotate(5);
+    rotate(1);
+    rotate(4);
+    rotate(8);
+    
+    printf("\ne = %lf\n",e);
+    
     complete();
 }
 
@@ -126,6 +137,9 @@ void readCSV(char *filename){
     int col=0; //column number in line (taking to accound the ';' symbols)
     int neighCount=0; //
     int energyNum=0; //holds actual count of previously parsed energies
+    e = 0;
+    emax = 0;
+    
     do {
         c = fgetc(file);
 
@@ -140,6 +154,8 @@ void readCSV(char *filename){
                     sscanf( symb, "%lf", &parsedNumber );
                     neighbours[energyNum] = col;
                     energies[energyNum] = parsedNumber;
+                    e += parsedNumber;
+                    emax += abs(parsedNumber);
 
 
                     printf("%f\t",parsedNumber);
@@ -170,13 +186,21 @@ void readCSV(char *filename){
             skipFlag=false;
         }
     } while (c != EOF);
-
+    
+    emax/=2;
+    e/=2;
+    emin = -emax;
+    
     fclose(file);
-
 }
 
 void rotate(int spin){
-
+    float dE=0;
+    spins[spin] *= -1;
+    for(int i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
+        dE += energies[i]*spins[neighbours[i]]*spins[spin]*2;
+    }
+    e += dE;
 }
 
 void complete(){
