@@ -4,9 +4,9 @@
         Wang-Landau method for different magnetic systems
 
            programmed by:
-           	Makarov Aleksandr
-           	Andriushchenko Petr
-           	Shevchenko Yuriy
+            Makarov Aleksandr
+            Andriushchenko Petr
+            Shevchenko Yuriy
 
 
 */
@@ -18,27 +18,27 @@
 #include <stdbool.h>
 
 
-int n; // количество спинов
-signed char *spins; //массив направления спинов. По умолчанию +1. n - число считанных спинов (число незакомментированных строк в csv-файле).
-unsigned short *a_neighbours; //число соседей каждого спина. Считается как число энергий в соответствующей строке в csv-файле.
-unsigned short *neighbours; // соседи каждого спина
-unsigned int *sequencies; //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
-double *energies; //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
-float emin, emax; //минимумы и максимумы энергии
-float e; //текущая энергия системы
-unsigned eCount=0; //число пар энергий
+int n;                          // количество спинов
+signed char *spins;             //массив направления спинов. По умолчанию +1. n - число считанных спинов (число незакомментированных строк в csv-файле).
+unsigned short *a_neighbours;   //число соседей каждого спина. Считается как число энергий в соответствующей строке в csv-файле.
+unsigned short *neighbours;     // соседи каждого спина
+unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
+double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
+float emin, emax;               //минимумы и максимумы энергии
+float e;                        //текущая энергия системы
+unsigned eCount=0;              //число пар энергий
 
-#define PRECISION 3 //Сколько знаков учитывать в энергии после запятой
+#define PRECISION 3             //Сколько знаков учитывать в энергии после запятой !! НЕ СДЕЛАНО ЕЩЕ
 
 
 void readCSV(char* filename);
-void rotate(int spin); // Считает энергию системы
+void rotate(int spin);          // Считает энергию системы
 void complete();
 
 
 int main(void)
 {
-    readCSV("csv_examples/HC_30_lr.csv");
+    readCSV("csv_examples/simplest_exmple.csv");
 
     printf("\n");
     printf("spins:");
@@ -71,37 +71,45 @@ int main(void)
     }
     printf("\n");
 
-    
-    
+
+
     printf("\ne = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
-    
+
     rotate(5);
     rotate(1);
     rotate(4);
     rotate(8);
-    
+
     printf("\ne = %lf\n",e);
-    
+
     complete();
 }
 
 
 void readCSV(char *filename){
 
-    char c; //считанный из файла символ
-    char symb[100]; //символ энергии в текстовом файле
+    char c;                         //считанный из файла символ
+    char symb[100];                 //символ энергии в текстовом файле
 
     //get system sizes
     bool isFirstLine=true;
     n=0;
     FILE *file2 = fopen(filename, "r");
     int fpos = 1, lastFpos=0;
+
+    while(c = fgetc(file2)=='#')     //пропуск комментариев
+           {
+                fscanf(file2,"%[^\n]%*c",symb);
+           }
+     fseek(file2,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
+     int coursor=ftell(file2);       // положение курсора начала данных
+
     do{
         c = fgetc(file2);
-        while(c=='#'){
-            do c = fgetc(file2); while (c != '\n');
-            c = fgetc(file2);
-        }
+//        while(c=='#'){
+//            do c = fgetc(file2); while (c != '\n');           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
+//            c = fgetc(file2);
+//        }
         if (isFirstLine && c==';')
             ++n;
         if (c=='\n')
@@ -116,18 +124,18 @@ void readCSV(char *filename){
         fpos++;
     } while (c != EOF);
     ++n;
-    fclose(file2);
+
+    // reserve memory for arrays
+    spins=(signed char *) malloc(n*sizeof(signed char));
+    a_neighbours=(unsigned short *) malloc(n*sizeof(unsigned short));
+    neighbours=(unsigned short *) malloc(eCount*sizeof(unsigned short));     //поменять размер
+    sequencies=(unsigned int *) malloc(n*sizeof(unsigned int));
+    energies = (double *) malloc(eCount*sizeof(double));                        //поменять размер
 
 
     // read data
 
-
-
-
-
-
-
-    FILE *file = fopen(filename, "r");
+    fseek(file2,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
 
     bool firstSymbolInLine=true, skipFlag=false;
     double parsedNumber;
@@ -139,16 +147,16 @@ void readCSV(char *filename){
     int energyNum=0; //holds actual count of previously parsed energies
     e = 0;
     emax = 0;
-    
-    do {
-        c = fgetc(file);
 
-        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
-            skipFlag=true; //skip to end of line
-        }
+    do {
+        c = fgetc(file2);
+
+//        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
+//            skipFlag=true; //skip to end of line
+//        }                                           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
         firstSymbolInLine=false;
 
-        if (!skipFlag){
+//        if (!skipFlag){
             if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
                 if (numInSymb!=0){
                     sscanf( symb, "%lf", &parsedNumber );
@@ -179,20 +187,19 @@ void readCSV(char *filename){
                 ++row;
                 printf("\n");
             }
-        }
+
 
         if (c=='\n'){ //if it is newline, mark the flag
             firstSymbolInLine=true;
-            skipFlag=false;
+//            skipFlag=false;
         }
     } while (c != EOF);
-    
+
     emax/=2;
     e/=2;
     emin = -emax;
-    
-    fclose(file);
 
+    fclose(file2);
 }
 
 void rotate(int spin){
