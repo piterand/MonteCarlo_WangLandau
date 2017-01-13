@@ -38,7 +38,7 @@ void complete();
 
 int main(void)
 {
-    readCSV("csv_examples/square_ising_4x4.csv");
+    readCSV("csv_examples/HC_30_lr.csv");
 
     printf("\n");
     printf("spins:");
@@ -155,7 +155,7 @@ void readCSV(char *filename){
                     neighbours[energyNum] = col;
                     energies[energyNum] = parsedNumber;
                     e += parsedNumber;
-                    emax += abs(parsedNumber);
+                    emax += fabs(parsedNumber);
 
 
                     printf("%f\t",parsedNumber);

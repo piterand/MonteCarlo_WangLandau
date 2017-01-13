@@ -1,5 +1,5 @@
 # 5 particles. Ising dipoles.
-# Each spin has 2 neighbours
+# Each spin has 2 neighbors
 ;1;-1;;
 1;;;1;
 -1;;;;1
