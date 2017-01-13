@@ -38,7 +38,14 @@ void complete();
 
 int main(void)
 {
-    readCSV("csv_examples/simplest_exmple.csv");
+    int seed=0;                 // Random seed
+    printf("# Please, input random number seed:  ");
+    scanf("%u",&seed);
+    char filename[100];
+    printf("# Please, input target filename: ");
+    scanf("%s",filename);
+
+    readCSV(filename);
 
     printf("\n");
     printf("spins:");
