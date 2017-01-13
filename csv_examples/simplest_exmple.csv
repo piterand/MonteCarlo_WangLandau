@@ -1,5 +1,5 @@
-# Система из 5 частиц. диполи Изинга.
-# у каждого спина по 2 соседа
+# 5 particles. Ising dipoles.
+# Each spin has 2 neighbours
 ;1;-1;;
 1;;;1;
 -1;;;;1
