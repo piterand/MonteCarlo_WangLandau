@@ -28,12 +28,27 @@ float emin, emax;               //минимумы и максимумы эне�
 float e;                        //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 
+double *g;
+double *visit;
+double *hist;
+int *nonzero;
+
+double f,factor;
+int nfinal;
+
+
+
 #define PRECISION 3             //Сколько знаков учитывать в энергии после запятой !! НЕ СДЕЛАНО ЕЩЕ
 
 
 void readCSV(char* filename);
 void rotate(int spin);          // Считает энергию системы
 void complete();
+
+void mc();
+void single();
+void gupdate();
+void normalize();
 
 
 int main(void)
@@ -88,7 +103,38 @@ int main(void)
     rotate(8);
 
     printf("\ne = %lf\n",e);
+    
+    
+    
+    
+    
+    
+    
+    printf("# initial energy = %lf\n",e);    // modified
+    
+    //*
+    
+    factor = 0.8;
+    nfinal = 24; //изменить, не понял что это
+    
+    int ie;
+    for(ie=0; ie<=eCount; ie++){
+      g[ie]=0;
+      hist[ie]=0;
+    }
+    
+    srand(seed);
+    mc();
+    normalize();
 
+    for(ie=0; ie<=eCount; ie++){   
+      if (nonzero[ie] == 1) {
+        printf("%d  %e  %e  %e\n",ie-3*n,g[ie],g[ie]/n,hist[ie]); 
+      }
+    }
+    //*/
+    
+    
     complete();
 }
 
@@ -138,6 +184,11 @@ void readCSV(char *filename){
     neighbours=(unsigned short *) malloc(eCount*sizeof(unsigned short));     //поменять размер
     sequencies=(unsigned int *) malloc(n*sizeof(unsigned int));
     energies = (double *) malloc(eCount*sizeof(double));                        //поменять размер
+    
+    g = (double *) malloc(eCount*sizeof(double)); //не уверен по поводу размеров
+    visit = (double *) malloc(eCount*sizeof(double)); //не уверен по поводу размеров
+    hist = (double *) malloc(eCount*sizeof(double)); //не уверен по поводу размеров
+    nonzero = (double *) malloc(eCount*sizeof(double)); //не уверен по поводу размеров
 
 
     // read data
@@ -226,3 +277,160 @@ void complete(){
     free(sequencies);
     free(energies);
 }
+
+
+
+
+void mc()
+/*
+        monte carlo update
+*/
+{
+  int ie,n;
+  int check,flag;
+  int step, totalstep;
+  int count;
+  double sum;
+
+/*   initialization  */
+  totalstep=0;
+  f=1;
+
+  for(ie=0; ie<=eCount; ie++){
+    nonzero[ie]=0;
+  }
+
+  for( n = 0; n <= nfinal; n++){
+
+    flag=0;
+    step=0;
+
+    for(ie=0; ie<=eCount; ie++){ 
+      visit[ie]=0;
+    }
+
+    while(flag == 0){
+
+      single();
+
+      step++;
+
+      if(step%1000==0){
+
+        for(ie=0; ie<=eCount; ie++){
+          if(visit[ie] > 0) {nonzero[ie]=1;}
+        }
+
+        count=0;
+        sum=0;
+        for(ie=0; ie<=eCount; ie++){
+          if(nonzero[ie]==1) {
+            count++;
+            sum+=visit[ie];
+          }
+        }
+
+        check=1; 
+        for(ie=0; ie<=eCount; ie++){
+          if(nonzero[ie]==1) {
+            if(visit[ie] < factor*(sum/count)){check=0;}
+          }
+        }
+
+        if(check==1){flag++;}
+      }
+    }
+
+    gupdate();
+
+    totalstep += step;
+
+    printf("# n=%2d    MCS=%9d\n",n,totalstep);
+
+    f = f/2;
+  }
+  printf("# final   MCS=%9d\n",totalstep);
+
+}
+
+void single()
+/*   single spin flip */
+{
+    int la,la1;
+    double energyOld;
+    double ga,gb;
+    
+    
+    //проверить весь алгоритм!!!!!!!!!!!!!!!!
+    for(la1=0; la1 <= n-1; la1++){//нужен ли этот цикл?
+        la=rand()%n;
+        energyOld = e;
+        rotate(la);
+        
+        ga = g[(energyOld-emin)*1ePRECISION]; //проверить ключи
+        gb = g[(e-emin)*1ePRECISION]; //проверить ключи
+        
+        if(exp(ga-gb) > rand()/RAND_MAX){
+            rotate(la);
+            energyOld  = e;
+        }
+        
+        g[(energyOld-emin)*1ePRECISION]     += f; //проверить ключи
+        visit[(energyOld-emin)*1ePRECISION] += 1; //проверить ключи
+        hist[(energyOld-emin)*1ePRECISION]  += 1; //проверить ключи
+    }
+}
+
+void gupdate()
+{
+    int ie;
+    double gmin;
+    
+    /* set min of g[ie] as 1 */
+    gmin=10000000;
+    
+    for (ie=0; ie<=eCount; ie++){
+        if (nonzero[ie] == 1) {
+            if(g[ie] < gmin) {
+                gmin = g[ie];
+            }
+        }
+    }
+    
+    for (ie=0; ie<=eCount; ie++){
+        if (nonzero[ie] == 1) {
+            g[ie] += -gmin;
+        }
+    }
+}
+
+void normalize()
+{
+    int ie;
+    double gmax, sum, a;
+    
+    gmax = -1000;
+    for(ie=0; ie<eCount; ie++){
+        if (nonzero[ie] == 1) {
+            if(g[ie]>gmax){
+                gmax = g[ie];
+            }
+        }
+    }
+    
+    sum=0;
+    for(ie=0; ie<eCount; ie++){
+        if (nonzero[ie] == 1) {
+            sum += exp(g[ie]-gmax);
+        }
+    }
+    
+    a = n*log(2) - gmax - log(sum);
+    
+    for(ie=0; ie<eCount; ie++){
+        if (nonzero[ie] == 1) {
+            g[ie] += a;
+        }
+    }
+}
+
