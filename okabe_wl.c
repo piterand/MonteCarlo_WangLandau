@@ -190,7 +190,7 @@ void spinset()
       for (la=0; la <= nla-1; la++){
         if(
                 //drand48()<p
-                (rand()/RAND_MAX) < p
+                ((double)rand()/RAND_MAX) < p
                 ){
           isp[la]=0;
           nhole++;
