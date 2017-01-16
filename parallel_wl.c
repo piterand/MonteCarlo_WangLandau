@@ -38,7 +38,7 @@ double f; // Модификационный фактор (уменьшается
 double factor; // Критерий плоскости гистограммы H
 unsigned nfinal; // число WL-циклов
 
-#define PRECISION 1e0             //Сколько знаков учитывать в энергии после запятой
+#define PRECISION 1e2             //Сколько знаков учитывать в энергии после запятой
 
 
 int readCSV(char* filename);
@@ -67,31 +67,31 @@ int main(void)
     }
 
     printf("\n");
-    printf("spins:");
+    printf("# spins:");
     for (unsigned i=0;i<n;i++){
         printf("%d,",spins[i]);
     }
     printf("\n");
 
-    printf("a_neighbours:");
+    printf("# a_neighbours:");
     for (unsigned i=0;i<n;i++){
         printf("%d,",a_neighbours[i]);
     }
     printf("\n");
 
-    printf("sequencies:");
+    printf("# sequencies:");
     for (unsigned i=0;i<n;i++){
         printf("%d,",sequencies[i]);
     }
     printf("\n");
 
-    printf("neighbours:");
+    printf("# neighbours:");
     for (unsigned i=0;i<eCount;i++){
         printf("%d,",neighbours[i]);
     }
     printf("\n");
 
-    printf("energies:");
+    printf("# energies:");
     for (unsigned i=0;i<eCount;i++){
         printf("%f,",energies[i]);
     }
@@ -99,7 +99,7 @@ int main(void)
 
 
 
-    printf("\ne = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
+    printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
 
     if (false){ // если true - загнать модель изинга в минимум
         rotate(1);
@@ -112,7 +112,7 @@ int main(void)
         rotate(14);
     }
 
-    printf("\ne = %lf\n",e);
+    printf("\n# e = %lf\n",e);
     
     printf("# initial energy = %lf\n",e);
     
@@ -458,18 +458,19 @@ void normalize()
 
 void dumpArrays(){
     FILE *file = fopen("dump.dat", "w");
-    fprintf(file,"ie g[ie]  g[ie]/n  hist[ie]  visit[ie]\n");
-    for(unsigned ie=0; ie<=histSize; ie++){
-      if (nonzero[ie] == 1) {
-        fprintf(file,"%d  %e  %e  %d  %d\n",ie,g[ie],g[ie]/n,hist[ie],visit[ie]);
-      }
-    }
 
     fprintf(file,"E=%e; state=",e);
     for(unsigned ie=0; ie<n; ie++){
         fprintf(file,"%d",spins[ie]);
     }
     fprintf(file,"\n");
+
+    fprintf(file,"ie  E  g[ie]  g[ie]/n  hist[ie]  visit[ie]\n");
+    for(unsigned ie=0; ie<=histSize; ie++){
+      if (nonzero[ie] == 1) {
+        fprintf(file,"%d  %e  %e  %e  %d  %d\n",ie,(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie],visit[ie]);
+      }
+    }
 
     fclose(file);
 }
