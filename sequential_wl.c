@@ -29,7 +29,7 @@ double e;                        //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
-double *g;                      // гистограмма
+double *g;                      // гистограмма g[E], только хранятся !логарифмы!.
 unsigned *visit;
 unsigned *hist;
 int *nonzero;
@@ -142,7 +142,7 @@ int main(void)
 
     
     
-    // complete(); //чето отчистка не пашет
+     complete(); //  все пашет)
 }
 
 /// Функция чтения файла с энергиями
@@ -313,7 +313,7 @@ void mc()
     nonzero[ie]=0;
   }
 
-  for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n?
+  for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n? , я исправил на tt
 
     flag=0;
     step=0;
@@ -339,15 +339,15 @@ void mc()
         for(ie=0; ie<=histSize; ie++){
           if(nonzero[ie]==1) {
             count++;                        // подсчитываем количество встреченных энергий
-            sum+=visit[ie];                 // зачем-то их сумма
+            sum+=visit[ie];                 // сумма посещений всех энергий
           }
         }
 
         check=1; 
-        for(ie=0; ie<=histSize; ie++){      // проверка на плоскость?
+        for(ie=0; ie<=histSize; ie++){                      // проверка на плоскоту
           if(nonzero[ie]==1) {
-            if(visit[ie] < factor*(sum/count)){check=0;}
-          }
+            if(visit[ie] < factor*(sum/count)){check=0;}    // sum/count = среднее значение количества посещений энергий
+          }                                                 // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
         }
 
         if (false && step%100000) //написать true для дебаг-вывода в файл
@@ -361,9 +361,9 @@ void mc()
 
     totalstep += step;
 
-    printf("# n=%2d    MCS=%9d\n",tt,totalstep);
+    printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
 
-    f = f/2;
+    f = f/2;    // !! НЕОБХОДИМО ИСПРАВИТЬ НА t, при чем t пропорционально шагу моделирования !!  doi:10.1063/1.2803061
   }
   printf("# final   MCS=%9d\n",totalstep);
 
@@ -397,31 +397,32 @@ void single()
             enKey = eoKey;          // берем старый столбик гистограммы
         }
         
-        g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы
+        g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы (так как тут хрянятся логарифмы)
         visit[enKey] += 1;
         hist[enKey]  += 1;
     }
 }
 
+// нормализация g[E]
 void gupdate()
 {
-    unsigned ie;
-    double gmin;
-    
     /* set min of g[ie] as 1 */
-    gmin=10000000;
-    
-    for (ie=0; ie<=histSize; ie++){
+    double gmin=10000000;              // устанавливаем gmin очень большим, чтобы в системе точно найти минимум.
+
+    for (unsigned ie=0; ie<=histSize; ++ie){
         if (nonzero[ie] == 1) {
+            //printf("!# g[%u]=%f\n",ie,g[ie]);
             if(g[ie] < gmin) {
-                gmin = g[ie];
+                gmin = g[ie];   // находим наименьшее значение g[E]
+
             }
         }
     }
-    
-    for (ie=0; ie<=histSize; ie++){
+
+    for (unsigned ie=0; ie<=histSize; ++ie){
         if (nonzero[ie] == 1) {
-            g[ie] += -gmin;
+            g[ie] += -gmin;     // !! нормализация g[E], а тут =0, так как тут хранятся логарифмы.
+            //printf("!# g[%u]=%f\n",ie,g[ie]);
         }
     }
 }
