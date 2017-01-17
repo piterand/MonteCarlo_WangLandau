@@ -29,16 +29,17 @@ double e;                        //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
-double *g;
+double *g;                      // гистограмма
 unsigned *visit;
 unsigned *hist;
 int *nonzero;
 
-double f; // Модификационный фактор (уменьшается с каждым WL-шагом)
-double factor; // Критерий плоскости гистограммы H
-unsigned nfinal; // число WL-циклов
+double f;           // Модификационный фактор (уменьшается с каждым WL-шагом)
+double factor;      // Критерий плоскости гистограммы H
+unsigned nfinal;    // число WL-циклов
 
-#define PRECISION 1e2             //Сколько знаков учитывать в энергии после запятой
+#define PRECISION 1e0             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+                                  // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 
 int readCSV(char* filename);
@@ -54,17 +55,18 @@ void dumpArrays();
 
 int main(void)
 {
-    int seed=0;                 // Random seed
-    printf("# Please, input random number seed:  ");
+    unsigned long seed=0;                 // Random seed
+    printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
     scanf("%u",&seed);
     char filename[100];
     printf("# Please, input target filename: ");
     scanf("%s",filename);
 
-    if (!readCSV(filename)){
+    if (!readCSV("csv_examples/square_ising_4x4.csv")){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
+
 
     printf("\n");
     printf("# spins:");
@@ -101,7 +103,7 @@ int main(void)
 
     printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
 
-    if (false){ // если true - загнать модель изинга в минимум
+    if (false){         // !DEBUG если true - загнать модель изинга в минимум
         rotate(1);
         rotate(3);
         rotate(4);
@@ -118,8 +120,8 @@ int main(void)
     
     //*
     
-    factor = 0.8;
-    nfinal = 24; //изменить, не понял что это
+    factor = 0.8;       // Критерий плоскости гистограммы H
+    nfinal = 24;        // число WL-циклов
     
     unsigned ie;
     for(ie=0; ie<=eCount; ie++){
@@ -128,6 +130,7 @@ int main(void)
     }
     
     srand(seed);
+
     mc();
     normalize();
 
@@ -136,13 +139,13 @@ int main(void)
         printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
       }
     }
-    //*/
+
     
     
     // complete(); //чето отчистка не пашет
 }
 
-
+/// Функция чтения файла с энергиями
 int readCSV(char *filename){
 
     char c;                         //считанный из файла символ
@@ -202,12 +205,12 @@ int readCSV(char *filename){
     double parsedNumber;
     int numInSymb=0;
     symb[0]='\0';
-    int row=0; //line number in file (not account the commented lines)
-    int col=0; //column number in line (taking to accound the ';' symbols)
-    int neighCount=0; //
-    int energyNum=0; //holds actual count of previously parsed energies
+    int row=0;                  //line number in file (not account the commented lines)
+    int col=0;                  //column number in line (taking to accound the ';' symbols)
+    int neighCount=0;           //
+    int energyNum=0;            //holds actual count of previously parsed energies
     e = 0;
-    emax = 0;
+    emax = 0;                   // сумма всех взаимодействий с положительным знаком
 
     do {
         c = fgetc(file);
@@ -259,7 +262,7 @@ int readCSV(char *filename){
 
     fclose(file);
 
-    histSize = (int)((emax-emin)*PRECISION)+1;
+    histSize = (int)((emax-emin)*PRECISION)+1;              // почему резервирование этих массивов происходит именно в этой функции?
     g = (double *) malloc(histSize*sizeof(double));
     visit = (unsigned *) malloc(histSize*sizeof(unsigned));
     hist = (unsigned *) malloc(histSize*sizeof(unsigned));
@@ -267,7 +270,7 @@ int readCSV(char *filename){
 
     return 1;
 }
-
+/// Переворот спина, подсчет изменения энергии
 void rotate(int spin){
     double dE=0;
     spins[spin] *= -1;
@@ -276,7 +279,7 @@ void rotate(int spin){
     }
     e += dE;
 }
-
+/// Очистка памяти
 void complete(){
     // clean arrays
     free(spins);
@@ -290,16 +293,13 @@ void complete(){
     free(hist);
     free(nonzero);
 }
-
-
-
-
+/// Монтекарло шаг
 void mc()
 /*
         monte carlo update
 */
 {
-  unsigned ie,n;
+  unsigned ie,tt; //итераторы
   int check,flag;
   int step, totalstep;
   int count;
@@ -309,17 +309,17 @@ void mc()
   totalstep=0;
   f=1;
 
-  for(ie=0; ie<=histSize; ie++){
+  for(ie=0; ie<=histSize; ie++){    //обнуляем массив nonzero
     nonzero[ie]=0;
   }
 
-  for( n = 0; n <= nfinal; n++){
+  for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n?
 
     flag=0;
     step=0;
 
     for(ie=0; ie<=histSize; ie++){
-      visit[ie]=0;
+      visit[ie]=0;                  // обнуляем массив visit
     }
 
     while(flag == 0){
@@ -328,23 +328,23 @@ void mc()
 
       step++;
 
-      if(step%1000==0){
+      if(step%1000==0){         // каждые 1000 шагов
 
         for(ie=0; ie<=histSize; ie++){
-          if(visit[ie] > 0) {nonzero[ie]=1;}
+          if(visit[ie] > 0) {nonzero[ie]=1;}        // проверяем, появились ли новые энергии
         }
 
         count=0;
         sum=0;
         for(ie=0; ie<=histSize; ie++){
           if(nonzero[ie]==1) {
-            count++;
-            sum+=visit[ie];
+            count++;                        // подсчитываем количество встреченных энергий
+            sum+=visit[ie];                 // зачем-то их сумма
           }
         }
 
         check=1; 
-        for(ie=0; ie<=histSize; ie++){
+        for(ie=0; ie<=histSize; ie++){      // проверка на плоскость?
           if(nonzero[ie]==1) {
             if(visit[ie] < factor*(sum/count)){check=0;}
           }
@@ -361,7 +361,7 @@ void mc()
 
     totalstep += step;
 
-    printf("# n=%2d    MCS=%9d\n",n,totalstep);
+    printf("# n=%2d    MCS=%9d\n",tt,totalstep);
 
     f = f/2;
   }
@@ -370,34 +370,34 @@ void mc()
 }
 
 void single()
-/*   single spin flip */
+/*   single spin flip */    // нифига не сингл флип, а n spins flips.
 {
-    unsigned la,la1;
-    double energyOld;
-    double ga,gb;
+    unsigned la,la1;        // итераторы
+    double energyOld;       // старая энергия
+    double ga,gb;           // g[старой энергии] и g[новой энергии]
 
-    int eoKey, enKey;
+    int eoKey, enKey;       // номер столбика гистограммы энергий старой и новой
     
     
     //проверить весь алгоритм!!!!!!!!!!!!!!!!
-    for(la1=0; la1 <= n-1; la1++){//нужен ли этот цикл?
-        la=rand()%n;
-        energyOld = e;
-        rotate(la);
+    for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз, не знаю почему
+        la=rand()%n;            // выбираем случайный спин
+        energyOld = e;          // записываем старую энергию
+        rotate(la);             // переворачиваем выбранный спин
 
-        eoKey = (int)((energyOld-emin)*PRECISION);
-        enKey = (int)((e-emin)*PRECISION);
+        eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
+        enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
         
-        ga = g[eoKey];
-        gb = g[enKey];
+        ga = g[eoKey];          // g[старой энергии]
+        gb = g[enKey];          // g[новой энергии]
         
-        if(exp(ga-gb) <= (double)rand()/RAND_MAX){
-            spins[la] *= -1;
-            e = energyOld;
-            enKey = eoKey;
+        if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
+            spins[la] *= -1;        // не принимаем новую конфеигурацию, обратно переворачиваем спин
+            e = energyOld;          // обратно записываем старую энергию
+            enKey = eoKey;          // берем старый столбик гистограммы
         }
         
-        g[enKey]     += f;
+        g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы
         visit[enKey] += 1;
         hist[enKey]  += 1;
     }
