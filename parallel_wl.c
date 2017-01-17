@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include "mpi.h"
 
 
 unsigned n;                          // количество спинов
@@ -52,8 +53,16 @@ void normalize();
 void dumpArrays();
 
 
-int main(void)
+int main(int argc, char **argv)
 {
+    MPI_Init(&argc,&argv);//инициализация mpi
+    int rank, size;
+    
+    MPI_Comm_size(MPI_COMM_WORLD, &size); //получение числа процессов
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank); //текущий id процесса
+	printf("size = %d, rank = %d\n", size, rank);
+    
+    
     int seed=0;                 // Random seed
     printf("# Please, input random number seed:  ");
     scanf("%u",&seed);
@@ -140,6 +149,10 @@ int main(void)
     
     
     // complete(); //чето отчистка не пашет
+    
+    
+    MPI_Finalize();
+    return 0;
 }
 
 
@@ -299,7 +312,7 @@ void mc()
         monte carlo update
 */
 {
-  unsigned ie,n;
+  unsigned ie,tt;
   int check,flag;
   int step, totalstep;
   int count;
@@ -313,7 +326,7 @@ void mc()
     nonzero[ie]=0;
   }
 
-  for( n = 0; n <= nfinal; n++){
+  for( tt = 0; tt <= nfinal; tt++){
 
     flag=0;
     step=0;
@@ -361,7 +374,7 @@ void mc()
 
     totalstep += step;
 
-    printf("# n=%2d    MCS=%9d\n",n,totalstep);
+    printf("# n=%2d    MCS=%9d\n",tt,totalstep);
 
     f = f/2;
   }
