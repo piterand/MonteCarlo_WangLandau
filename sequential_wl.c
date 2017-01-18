@@ -24,6 +24,9 @@ unsigned short *a_neighbours;   //число соседей каждого сп�
 unsigned short *neighbours;     // соседи каждого спина
 unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
 double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
+double *intervals;              //массив интервалов
+double *intervalsE;             //массив интервалов значений
+int intervalsNum=0;             //число значений интервалов из файла
 double emin, emax;               //минимумы и максимумы энергии
 double e;                        //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
@@ -43,6 +46,7 @@ unsigned nfinal;    // число WL-циклов
 
 
 int readCSV(char* filename);
+int readCSVintervals(char* filename);
 void rotate(int spin);          // Считает энергию системы
 void complete();
 
@@ -67,6 +71,14 @@ int main(void)
         return 0;
     }
 
+    
+    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
+    
+    if (!readCSVintervals(intervalsFile)){                          ///new
+        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
+        return 0;
+    }
+    
 
     printf("\n");
     printf("# spins:");
@@ -474,4 +486,73 @@ void dumpArrays(){
     }
 
     fclose(file);
+}
+
+int readCSVintervals(char *filename){
+    int numerOfStrings = 0;
+    char c;                         //считаный из файла символ
+    char symb[100];                 //символ энергии в текстовом файле
+    
+    //get system sizes
+    bool isFirstLine=true;
+    FILE *file = fopen(filename, "r");
+    
+    if (!file)
+        return 0;
+    
+    while(fgetc(file)=='#')     //пропуск комментариев и пустой строки
+    {
+        fscanf(file,"%[^\n]%*c",symb);
+    }
+    fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
+    int coursor=ftell(file);       // положение курсора начала данных
+    
+    do{
+        c = fgetc(file);
+        if (c=='\n' && isFirstLine){
+            isFirstLine=false;
+        }
+        if ((c=='\n' && !isFirstLine) || c == EOF){
+            isFirstLine=false;
+            numerOfStrings++;
+        }
+    } while (c != EOF);
+    
+    intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
+    intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
+    
+    for(int i=0; i<numerOfStrings*2; ++i)
+        intervalsE[i] = (emax-emin)*intervals[i];
+    
+    // read data
+    
+    fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
+    
+    double parsedNumber;
+    int numInSymb=0;
+    symb[0]='\0';
+    intervalsNum = 0;
+    
+    do {
+        c = fgetc(file);
+        
+        if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
+            if (numInSymb!=0){
+                sscanf(symb, "%lf", &parsedNumber);
+                intervals[intervalsNum] = parsedNumber;
+                intervalsE[intervalsNum] = (emax-emin) * parsedNumber + emin;
+                
+                numInSymb=0;
+                ++intervalsNum;
+            }
+        } else {
+            symb[numInSymb] = c;
+            symb[numInSymb+1] = '\0';
+            ++numInSymb;
+        }
+    } while (c != EOF);
+    
+    fclose(file);
+    
+    return 1;
 }

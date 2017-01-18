@@ -35,6 +35,7 @@ Thumbs.db
 /.qmake.cache
 /.qmake.stash
 build-parallel_wl-Desktop_Qt_5_7_0_MinGW_32bit-Release
+build-sequential_wl-Desktop_Qt_5_7_0_MinGW_32bit-Debug
 Ising_csv.c
 
 # qtcreator generated files
