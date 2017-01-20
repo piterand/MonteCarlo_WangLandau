@@ -25,7 +25,7 @@ unsigned short *neighbours;     // соседи каждого спина
 unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
 double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
 double *intervals;              //массив интервалов
-double *intervalsE;             //массив интервалов значений
+double *intervalsE;             //массив интервалов значений энергии
 int intervalsNum=0;             //число значений интервалов из файла
 double emin, emax;              //минимумы и максимумы энергии
 double e;                       //текущая энергия системы
@@ -52,8 +52,8 @@ int readCSVintervals(char* filename);
 void rotate(int spin);                  // Считает энергию системы
 void complete();
 
-void mc();
-void single();
+void mc(double eFrom, double eTo);
+void single(double eFrom, double eTo);
 void gupdate();
 void normalize();
 void dumpArrays();
@@ -75,12 +75,12 @@ int main(void)
     }
 
     
-//    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
+    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
     
-//    if (!readCSVintervals(intervalsFile)){                          ///new
-//        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
-//        return 0;
-//    }
+    if (!readCSVintervals(intervalsFile)){                          ///new
+        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
+        return 0;
+    }
     
 
     printf("\n");
@@ -164,7 +164,7 @@ int main(void)
     
     srand(seed);
 
-    mc();
+    mc(intervalsE[0],intervalsE[1]);
     normalize();
     //dumpArrays();
 
@@ -337,7 +337,7 @@ void complete(){
     free(nonzero);
 }
 /// Монтекарло шаг
-void mc()
+void mc(double eFrom, double eTo)
 /*
         monte carlo update
 */
@@ -373,7 +373,7 @@ void mc()
 
         while(flag == 0){
 
-            single();
+            single(intervalsE[0],intervalsE[1]);
 
             step++;
 
@@ -427,7 +427,7 @@ void mc()
 
 }
 
-void single()
+void single(double eFrom, double eTo)
 /*   single spin flip */    // нифига не сингл флип, а n spins flips.
 {
     unsigned la,la1;        // итераторы
@@ -455,7 +455,13 @@ void single()
         gb = g[enKey];          // g[новой энергии]
         
         if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
-            spins[la] *= -1;        // не принимаем новую конфеигурацию, обратно переворачиваем спин
+            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
+            e = energyOld;          // обратно записываем старую энергию
+            enKey = eoKey;          // берем старый столбик гистограммы
+        }
+        
+        if(e < eFrom && e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
+            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
             e = energyOld;          // обратно записываем старую энергию
             enKey = eoKey;          // берем старый столбик гистограммы
         }
