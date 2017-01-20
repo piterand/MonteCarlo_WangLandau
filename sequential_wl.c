@@ -197,6 +197,7 @@ int readCSV(char *filename){
         return 0;
 
     int fpos = 1, lastFpos=0;
+    int count_n=0;
 
     while(c = fgetc(file)=='#')     //пропуск комментариев
     {
@@ -213,8 +214,10 @@ int readCSV(char *filename){
         //        }
         if (isFirstLine && c==';')
             ++n;
-        if (c=='\n')
+        if (c=='\n'){
             isFirstLine=false;
+            count_n++;
+        }
 
         if (c==';' || c=='\n') {
             if (fpos-1 != lastFpos)
@@ -225,6 +228,8 @@ int readCSV(char *filename){
         fpos++;
     } while (c != EOF);
     ++n;
+    if(count_n!=n)
+        printf("!!!ERROR with number of element: Number of elements in first line does not correspond with number of lines");
 
     // reserve memory for arrays
     spins=(signed char *) malloc(n*sizeof(signed char));
