@@ -243,7 +243,6 @@ int readCSV(char *filename){
 
     fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
 
-    bool firstSymbolInLine=true, skipFlag=false;
     double parsedNumber;
     int numInSymb=0;
     symb[0]='\0';
@@ -257,12 +256,6 @@ int readCSV(char *filename){
     do {
         c = fgetc(file);
 
-        //        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
-        //            skipFlag=true; //skip to end of line
-        //        }                                           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
-        firstSymbolInLine=false;
-
-        //        if (!skipFlag){
         if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
             if (numInSymb!=0){
                 sscanf( symb, "%lf", &parsedNumber );
@@ -285,7 +278,7 @@ int readCSV(char *filename){
             ++numInSymb;
         }
 
-        if (c=='\n' || c == EOF){
+        if (c=='\n'){
 #ifdef DEBUG
             if (row>=n || row<0)
                 printf("Error with memory working9");
@@ -296,12 +289,6 @@ int readCSV(char *filename){
             neighCount=0;
             spins[row]=1;
             ++row;
-        }
-
-
-        if (c=='\n'){ //if it is newline, mark the flag
-            firstSymbolInLine=true;
-            //            skipFlag=false;
         }
     } while (c != EOF);
 
