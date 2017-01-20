@@ -41,7 +41,7 @@ double f;           // Модификационный фактор (уменьш
 double factor;      // Критерий плоскости гистограммы H
 unsigned nfinal;    // число WL-циклов
 
-#define PRECISION 1e0             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+#define PRECISION 1e2             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 #define DEBUG true
@@ -69,18 +69,18 @@ int main(void)
     printf("# Please, input target filename: ");
     scanf("%s",filename);
 
-    if (!readCSV("csv_examples/SSI_3x3_lr.csv")){
+    if (!readCSV(filename)){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
 
     
-    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
+//    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
     
-    if (!readCSVintervals(intervalsFile)){                          ///new
-        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
-        return 0;
-    }
+//    if (!readCSVintervals(intervalsFile)){                          ///new
+//        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
+//        return 0;
+//    }
     
 
     printf("\n");
@@ -166,6 +166,7 @@ int main(void)
 
     mc();
     normalize();
+    //dumpArrays();
 
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
@@ -173,7 +174,7 @@ int main(void)
             if (ie>=histSize || ie<0)
                 printf("Error with memory working7");
 #endif
-            printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
+            printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
         }
     }
 
@@ -308,9 +309,10 @@ int readCSV(char *filename){
 }
 /// Переворот спина, подсчет изменения энергии
 void rotate(int spin){
+    unsigned i;
     double dE=0;
     spins[spin] *= -1;
-    for(unsigned i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
+    for(i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
 #ifdef DEBUG
         if (spin>=n || spin<0) printf("Error with memory working10");
         if (i>=eCount || i<0) printf("Error with memory working11");
@@ -534,16 +536,17 @@ void normalize()
 }
 
 void dumpArrays(){
+    unsigned ie;
     FILE *file = fopen("dump.dat", "w");
 
     fprintf(file,"E=%e; state=",e);
-    for(unsigned ie=0; ie<n; ie++){
+    for(ie=0; ie<n; ie++){
         fprintf(file,"%d",spins[ie]);
     }
     fprintf(file,"\n");
 
     fprintf(file,"ie  E  g[ie]  g[ie]/n  hist[ie]  visit[ie]\n");
-    for(unsigned ie=0; ie<histSize; ie++){
+    for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
             fprintf(file,"%d  %e  %e  %e  %d  %d\n",ie,(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie],visit[ie]);
         }
@@ -584,8 +587,8 @@ int readCSVintervals(char *filename){
     
     intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
     intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
-    
-    for(int i=0; i<numerOfStrings*2; ++i)
+    unsigned i;
+    for( i=0; i<numerOfStrings*2; ++i)
         intervalsE[i] = (emax-emin)*intervals[i];
     
     // read data
