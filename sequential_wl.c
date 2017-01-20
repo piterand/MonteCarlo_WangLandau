@@ -154,9 +154,9 @@ int main(void)
     nfinal = 24;        // число WL-циклов
     
     unsigned ie;
-    for(ie=0; ie<eCount; ie++){
+    for(ie=0; ie<histSize; ie++){
 #ifdef DEBUG
-        if (ie>=eCount || i<0) printf("Error with memory working6");
+        if (ie>=histSize || ie<0) printf("Error with memory working6");
 #endif
         g[ie]=0;
         hist[ie]=0;
