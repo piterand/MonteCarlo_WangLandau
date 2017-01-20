@@ -75,3 +75,4 @@ Ising_csv.c
 *.exe
 
 dump.dat
+.fuse_hidden*
