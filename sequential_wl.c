@@ -18,7 +18,7 @@
 #include <stdbool.h>
 
 
-unsigned n;                          // количество спинов
+unsigned n;                     // количество спинов
 signed char *spins;             //массив направления спинов. По умолчанию +1. n - число считанных спинов (число незакомментированных строк в csv-файле).
 unsigned short *a_neighbours;   //число соседей каждого спина. Считается как число энергий в соответствующей строке в csv-файле.
 unsigned short *neighbours;     // соседи каждого спина
@@ -27,8 +27,8 @@ double *energies;               //сами энергии из файла. Оп�
 double *intervals;              //массив интервалов
 double *intervalsE;             //массив интервалов значений
 int intervalsNum=0;             //число значений интервалов из файла
-double emin, emax;               //минимумы и максимумы энергии
-double e;                        //текущая энергия системы
+double emin, emax;              //минимумы и максимумы энергии
+double e;                       //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
@@ -42,12 +42,14 @@ double factor;      // Критерий плоскости гистограмм�
 unsigned nfinal;    // число WL-циклов
 
 #define PRECISION 1e0             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
-                                  // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
+// (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
+
+#define DEBUG true
 
 
 int readCSV(char* filename);
 int readCSVintervals(char* filename);
-void rotate(int spin);          // Считает энергию системы
+void rotate(int spin);                  // Считает энергию системы
 void complete();
 
 void mc();
@@ -59,6 +61,7 @@ void dumpArrays();
 
 int main(void)
 {
+    unsigned i;
     unsigned long seed=0;                 // Random seed
     printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
     scanf("%u",&seed);
@@ -66,7 +69,7 @@ int main(void)
     printf("# Please, input target filename: ");
     scanf("%s",filename);
 
-    if (!readCSV("csv_examples/square_ising_4x4.csv")){
+    if (!readCSV("csv_examples/SSI_3x3_lr.csv")){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
@@ -82,31 +85,46 @@ int main(void)
 
     printf("\n");
     printf("# spins:");
-    for (unsigned i=0;i<n;i++){
+    for (i=0;i<n;i++){
+#ifdef DEBUG
+        if (i>=n || i<0) printf("Error with memory working1");
+#endif
         printf("%d,",spins[i]);
     }
     printf("\n");
 
     printf("# a_neighbours:");
-    for (unsigned i=0;i<n;i++){
+    for (i=0;i<n;i++){
+#ifdef DEBUG
+        if (i>=n || i<0) printf("Error with memory working2");
+#endif
         printf("%d,",a_neighbours[i]);
     }
     printf("\n");
 
     printf("# sequencies:");
-    for (unsigned i=0;i<n;i++){
+    for (i=0;i<n;i++){
+#ifdef DEBUG
+        if (i>=n || i<0) printf("Error with memory working3");
+#endif
         printf("%d,",sequencies[i]);
     }
     printf("\n");
 
     printf("# neighbours:");
-    for (unsigned i=0;i<eCount;i++){
+    for (i=0;i<eCount;i++){
+#ifdef DEBUG
+        if (i>=eCount || i<0) printf("Error with memory working4");
+#endif
         printf("%d,",neighbours[i]);
     }
     printf("\n");
 
     printf("# energies:");
-    for (unsigned i=0;i<eCount;i++){
+    for (i=0;i<eCount;i++){
+#ifdef DEBUG
+        if (i>=eCount || i<0) printf("Error with memory working5");
+#endif
         printf("%f,",energies[i]);
     }
     printf("\n");
@@ -136,9 +154,12 @@ int main(void)
     nfinal = 24;        // число WL-циклов
     
     unsigned ie;
-    for(ie=0; ie<=eCount; ie++){
-      g[ie]=0;
-      hist[ie]=0;
+    for(ie=0; ie<eCount; ie++){
+#ifdef DEBUG
+        if (ie>=eCount || i<0) printf("Error with memory working6");
+#endif
+        g[ie]=0;
+        hist[ie]=0;
     }
     
     srand(seed);
@@ -146,15 +167,19 @@ int main(void)
     mc();
     normalize();
 
-    for(ie=0; ie<=histSize; ie++){
-      if (nonzero[ie] == 1) {
-        printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
-      }
+    for(ie=0; ie<histSize; ie++){
+        if (nonzero[ie] == 1) {
+#ifdef DEBUG
+            if (ie>=histSize || ie<0)
+                printf("Error with memory working7");
+#endif
+            printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
+        }
     }
 
     
     
-     complete(); //  все пашет)
+    complete(); //  все пашет)
 }
 
 /// Функция чтения файла с энергиями
@@ -174,18 +199,18 @@ int readCSV(char *filename){
     int fpos = 1, lastFpos=0;
 
     while(c = fgetc(file)=='#')     //пропуск комментариев
-           {
-                fscanf(file,"%[^\n]%*c",symb);
-           }
-     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
-     int coursor=ftell(file);       // положение курсора начала данных
+    {
+        fscanf(file,"%[^\n]%*c",symb);
+    }
+    fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
+    int coursor=ftell(file);       // положение курсора начала данных
 
     do{
         c = fgetc(file);
-//        while(c=='#'){
-//            do c = fgetc(file2); while (c != '\n');           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
-//            c = fgetc(file2);
-//        }
+        //        while(c=='#'){
+        //            do c = fgetc(file2); while (c != '\n');           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
+        //            c = fgetc(file2);
+        //        }
         if (isFirstLine && c==';')
             ++n;
         if (c=='\n')
@@ -227,44 +252,51 @@ int readCSV(char *filename){
     do {
         c = fgetc(file);
 
-//        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
-//            skipFlag=true; //skip to end of line
-//        }                                           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
+        //        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
+        //            skipFlag=true; //skip to end of line
+        //        }                                           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
         firstSymbolInLine=false;
 
-//        if (!skipFlag){
-            if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
-                if (numInSymb!=0){
-                    sscanf( symb, "%lf", &parsedNumber );
-                    neighbours[energyNum] = col;
-                    energies[energyNum] = parsedNumber;
-                    e += parsedNumber;
-                    emax += fabs(parsedNumber);
+        //        if (!skipFlag){
+        if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
+            if (numInSymb!=0){
+                sscanf( symb, "%lf", &parsedNumber );
+                neighbours[energyNum] = col;
+#ifdef DEBUG
+                if (energyNum>=eCount || energyNum<0) printf("Error with memory working8");
+#endif
+                energies[energyNum] = parsedNumber;
+                e += parsedNumber;
+                emax += fabs(parsedNumber);
 
-                    numInSymb=0;
-                    ++neighCount;
-                    ++energyNum;
-                }
-                ++col;
-            } else {
-                symb[numInSymb] = c;
-                symb[numInSymb+1] = '\0';
-                ++numInSymb;
+                numInSymb=0;
+                ++neighCount;
+                ++energyNum;
             }
+            ++col;
+        } else {
+            symb[numInSymb] = c;
+            symb[numInSymb+1] = '\0';
+            ++numInSymb;
+        }
 
-            if (c=='\n' || c == EOF){
-                a_neighbours[row] = neighCount;
-                sequencies[row] = energyNum-neighCount;
-                col=0;
-                neighCount=0;
-                spins[row]=1;
-                ++row;
-            }
+        if (c=='\n' || c == EOF){
+#ifdef DEBUG
+            if (row>=n || row<0)
+                printf("Error with memory working9");
+#endif
+            a_neighbours[row] = neighCount;
+            sequencies[row] = energyNum-neighCount;
+            col=0;
+            neighCount=0;
+            spins[row]=1;
+            ++row;
+        }
 
 
         if (c=='\n'){ //if it is newline, mark the flag
             firstSymbolInLine=true;
-//            skipFlag=false;
+            //            skipFlag=false;
         }
     } while (c != EOF);
 
@@ -287,6 +319,11 @@ void rotate(int spin){
     double dE=0;
     spins[spin] *= -1;
     for(unsigned i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
+#ifdef DEBUG
+        if (spin>=n || spin<0) printf("Error with memory working10");
+        if (i>=eCount || i<0) printf("Error with memory working11");
+        if (neighbours[i]>=eCount || neighbours[i]<0) printf("Error with memory working111");
+#endif
         dE += energies[i]*spins[neighbours[i]]*spins[spin]*2;
     }
     e += dE;
@@ -311,73 +348,88 @@ void mc()
         monte carlo update
 */
 {
-  unsigned ie,tt; //итераторы
-  int check,flag;
-  int step, totalstep;
-  int count;
-  double sum;
+    unsigned ie,tt; //итераторы
+    int check,flag;
+    int step, totalstep;
+    int count;
+    double sum;
 
-/*   initialization  */
-  totalstep=0;
-  f=1;
+    /*   initialization  */
+    totalstep=0;
+    f=1;
 
-  for(ie=0; ie<=histSize; ie++){    //обнуляем массив nonzero
-    nonzero[ie]=0;
-  }
-
-  for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n? , я исправил на tt
-
-    flag=0;
-    step=0;
-
-    for(ie=0; ie<=histSize; ie++){
-      visit[ie]=0;                  // обнуляем массив visit
+    for(ie=0; ie<histSize; ie++){    //обнуляем массив nonzero
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working12");
+#endif
+        nonzero[ie]=0;
     }
 
-    while(flag == 0){
+    for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n? , я исправил на tt
 
-      single();
+        flag=0;
+        step=0;
 
-      step++;
-
-      if(step%1000==0){         // каждые 1000 шагов
-
-        for(ie=0; ie<=histSize; ie++){
-          if(visit[ie] > 0) {nonzero[ie]=1;}        // проверяем, появились ли новые энергии
+        for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+            if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
+            visit[ie]=0;                  // обнуляем массив visit
         }
 
-        count=0;
-        sum=0;
-        for(ie=0; ie<=histSize; ie++){
-          if(nonzero[ie]==1) {
-            count++;                        // подсчитываем количество встреченных энергий
-            sum+=visit[ie];                 // сумма посещений всех энергий
-          }
+        while(flag == 0){
+
+            single();
+
+            step++;
+
+            if(step%1000==0){         // каждые 1000 шагов
+
+                for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+                    if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
+                    if(visit[ie] > 0) {nonzero[ie]=1;}        // проверяем, появились ли новые энергии
+                }
+
+                count=0;
+                sum=0;
+                for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+                    if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
+                    if(nonzero[ie]==1) {
+                        count++;                        // подсчитываем количество встреченных энергий
+                        sum+=visit[ie];                 // сумма посещений всех энергий
+                    }
+                }
+
+                check=1;
+                for(ie=0; ie<histSize; ie++){                      // проверка на плоскоту
+#ifdef DEBUG
+                    if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
+                    if(nonzero[ie]==1) {
+                        if(visit[ie] < factor*(sum/count)){check=0;}    // sum/count = среднее значение количества посещений энергий
+                    }                                                 // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
+                }
+
+                if (false && step%100000) //написать true для дебаг-вывода в файл
+                    dumpArrays();
+
+                if(check==1){flag++;}
+            }
         }
 
-        check=1; 
-        for(ie=0; ie<=histSize; ie++){                      // проверка на плоскоту
-          if(nonzero[ie]==1) {
-            if(visit[ie] < factor*(sum/count)){check=0;}    // sum/count = среднее значение количества посещений энергий
-          }                                                 // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
-        }
+        gupdate();
 
-        if (false && step%100000) //написать true для дебаг-вывода в файл
-            dumpArrays();
+        totalstep += step;
 
-        if(check==1){flag++;}
-      }
+        printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
+
+        f = f/2;    // !! НЕОБХОДИМО ИСПРАВИТЬ НА t, при чем t пропорционально шагу моделирования !!  doi:10.1063/1.2803061
     }
-
-    gupdate();
-
-    totalstep += step;
-
-    printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
-
-    f = f/2;    // !! НЕОБХОДИМО ИСПРАВИТЬ НА t, при чем t пропорционально шагу моделирования !!  doi:10.1063/1.2803061
-  }
-  printf("# final   MCS=%9d\n",totalstep);
+    printf("# final   MCS=%9d\n",totalstep);
 
 }
 
@@ -399,7 +451,12 @@ void single()
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
-        
+#ifdef DEBUG
+        if (eoKey>=histSize || eoKey<0) printf("Error with memory working12");
+        if (enKey>=histSize || enKey<0) printf("Error with memory working12");
+        if (la>=n || la<0) printf("Error with memory working12");
+#endif
+
         ga = g[eoKey];          // g[старой энергии]
         gb = g[enKey];          // g[новой энергии]
         
@@ -420,8 +477,11 @@ void gupdate()
 {
     /* set min of g[ie] as 1 */
     double gmin=10000000;              // устанавливаем gmin очень большим, чтобы в системе точно найти минимум.
-
-    for (unsigned ie=0; ie<=histSize; ++ie){
+    unsigned ie;
+    for (ie=0; ie<histSize; ++ie){
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
         if (nonzero[ie] == 1) {
             //printf("!# g[%u]=%f\n",ie,g[ie]);
             if(g[ie] < gmin) {
@@ -431,7 +491,10 @@ void gupdate()
         }
     }
 
-    for (unsigned ie=0; ie<=histSize; ++ie){
+    for (ie=0; ie<histSize; ++ie){
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
         if (nonzero[ie] == 1) {
             g[ie] += -gmin;     // !! нормализация g[E], а тут =0, так как тут хранятся логарифмы.
             //printf("!# g[%u]=%f\n",ie,g[ie]);
@@ -446,6 +509,9 @@ void normalize()
     
     gmax = -1000;
     for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
         if (nonzero[ie] == 1) {
             if(g[ie]>gmax){
                 gmax = g[ie];
@@ -455,6 +521,9 @@ void normalize()
     
     sum=0;
     for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
         if (nonzero[ie] == 1) {
             sum += exp(g[ie]-gmax);
         }
@@ -463,6 +532,9 @@ void normalize()
     a = n*log(2) - gmax - log(sum);
     
     for(ie=0; ie<histSize; ie++){
+#ifdef DEBUG
+        if (ie>=histSize || ie<0) printf("Error with memory working5");
+#endif
         if (nonzero[ie] == 1) {
             g[ie] += a;
         }
@@ -479,10 +551,10 @@ void dumpArrays(){
     fprintf(file,"\n");
 
     fprintf(file,"ie  E  g[ie]  g[ie]/n  hist[ie]  visit[ie]\n");
-    for(unsigned ie=0; ie<=histSize; ie++){
-      if (nonzero[ie] == 1) {
-        fprintf(file,"%d  %e  %e  %e  %d  %d\n",ie,(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie],visit[ie]);
-      }
+    for(unsigned ie=0; ie<histSize; ie++){
+        if (nonzero[ie] == 1) {
+            fprintf(file,"%d  %e  %e  %e  %d  %d\n",ie,(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie],visit[ie]);
+        }
     }
 
     fclose(file);
