@@ -44,18 +44,15 @@ unsigned nfinal;                // число WL-циклов
 
 #define PRECISION 1e2           //Сколько знаков учитывать в энергии после запятой
 
-
-int readCSV(char* filename);
-int readCSVintervals(char* filename);
 void rotate(int spin);          // Считает энергию системы
 void complete();
 
 void mc();
 void single();
-void gupdate();
 void normalize();
-void dumpArrays();
 
+
+#include "common.c"
 
 int main(int argc, char **argv)
 {
@@ -175,132 +172,6 @@ int main(int argc, char **argv)
     
     MPI_Finalize();
     return 0;
-}
-
-
-int readCSV(char *filename){
-
-    char c;                         //считанный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
-
-    //get system sizes
-    bool isFirstLine=true;
-    n=0;
-    FILE *file = fopen(filename, "r");
-
-    if (!file)
-        return 0;
-
-    int fpos = 1, lastFpos=0;
-
-    while(c = fgetc(file)=='#')     //пропуск комментариев
-           {
-                fscanf(file,"%[^\n]%*c",symb);
-           }
-     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
-     int coursor=ftell(file);       // положение курсора начала данных
-
-    do{
-        c = fgetc(file);
-//        while(c=='#'){
-//            do c = fgetc(file2); while (c != '\n');           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
-//            c = fgetc(file2);
-//        }
-        if (isFirstLine && c==';')
-            ++n;
-        if (c=='\n')
-            isFirstLine=false;
-
-        if (c==';' || c=='\n') {
-            if (fpos-1 != lastFpos)
-                ++eCount;
-            lastFpos = fpos;
-        }
-
-        fpos++;
-    } while (c != EOF);
-    ++n;
-
-    // reserve memory for arrays
-    spins=(signed char *) malloc(n*sizeof(signed char));
-    a_neighbours=(unsigned short *) malloc(n*sizeof(unsigned short));
-    neighbours=(unsigned short *) malloc(eCount*sizeof(unsigned short));
-    sequencies=(unsigned int *) malloc(n*sizeof(unsigned int));
-    energies = (double *) malloc(eCount*sizeof(double));
-
-
-    // read data
-
-    fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
-
-    bool firstSymbolInLine=true, skipFlag=false;
-    double parsedNumber;
-    int numInSymb=0;
-    symb[0]='\0';
-    int row=0; //line number in file (not account the commented lines)
-    int col=0; //column number in line (taking to accound the ';' symbols)
-    int neighCount=0; //
-    int energyNum=0; //holds actual count of previously parsed energies
-    e = 0;
-    emax = 0;
-
-    do {
-        c = fgetc(file);
-
-//        if (firstSymbolInLine && c=='#'){ //if it is comment, skip the line
-//            skipFlag=true; //skip to end of line
-//        }                                           // нет необходимости, только если у нас не будет комментариев прямо посреди данных, но можно оставить
-        firstSymbolInLine=false;
-
-//        if (!skipFlag){
-            if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
-                if (numInSymb!=0){
-                    sscanf( symb, "%lf", &parsedNumber );
-                    neighbours[energyNum] = col;
-                    energies[energyNum] = parsedNumber;
-                    e += parsedNumber;
-                    emax += fabs(parsedNumber);
-
-                    numInSymb=0;
-                    ++neighCount;
-                    ++energyNum;
-                }
-                ++col;
-            } else {
-                symb[numInSymb] = c;
-                symb[numInSymb+1] = '\0';
-                ++numInSymb;
-            }
-
-            if (c=='\n' || c == EOF){
-                a_neighbours[row] = neighCount;
-                sequencies[row] = energyNum-neighCount;
-                col=0;
-                neighCount=0;
-                spins[row]=1;
-                ++row;
-            }
-
-
-        if (c=='\n'){ //if it is newline, mark the flag
-            firstSymbolInLine=true;
-//            skipFlag=false;
-        }
-    } while (c != EOF);
-
-    emax/=2;
-    e/=2;
-    emin = -emax;
-
-    fclose(file);
-
-    histSize = (int)((emax-emin)*PRECISION)+1;
-    g = (double *) malloc(histSize*sizeof(double));
-    visit = (unsigned *) malloc(histSize*sizeof(unsigned));
-    hist = (unsigned *) malloc(histSize*sizeof(unsigned));
-    nonzero = (int *) malloc(histSize*sizeof(int));
-
-    return 1;
 }
 
 void rotate(int spin){
@@ -437,29 +308,6 @@ void single()
     }
 }
 
-void gupdate()
-{
-    unsigned ie;
-    double gmin;
-    
-    /* set min of g[ie] as 1 */
-    gmin=10000000;
-    
-    for (ie=0; ie<=histSize; ie++){
-        if (nonzero[ie] == 1) {
-            if(g[ie] < gmin) {
-                gmin = g[ie];
-            }
-        }
-    }
-    
-    for (ie=0; ie<=histSize; ie++){
-        if (nonzero[ie] == 1) {
-            g[ie] += -gmin;
-        }
-    }
-}
-
 void normalize()
 {
     unsigned ie;
@@ -488,92 +336,4 @@ void normalize()
             g[ie] += a;
         }
     }
-}
-
-void dumpArrays(){
-    FILE *file = fopen("dump.dat", "w");
-
-    fprintf(file,"E=%e; state=",e);
-    for(unsigned ie=0; ie<n; ie++){
-        fprintf(file,"%d",spins[ie]);
-    }
-    fprintf(file,"\n");
-
-    fprintf(file,"ie  E  g[ie]  g[ie]/n  hist[ie]  visit[ie]\n");
-    for(unsigned ie=0; ie<=histSize; ie++){
-      if (nonzero[ie] == 1) {
-        fprintf(file,"%d  %e  %e  %e  %d  %d\n",ie,(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie],visit[ie]);
-      }
-    }
-
-    fclose(file);
-}
-
-int readCSVintervals(char *filename){
-    int numerOfStrings = 0;
-    char c;                         //считаный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
-    
-    //get system sizes
-    bool isFirstLine=true;
-    FILE *file = fopen(filename, "r");
-    
-    if (!file)
-        return 0;
-    
-    while(fgetc(file)=='#')     //пропуск комментариев и пустой строки
-    {
-        fscanf(file,"%[^\n]%*c",symb);
-    }
-    fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
-    int coursor=ftell(file);       // положение курсора начала данных
-    
-    do{
-        c = fgetc(file);
-        if (c=='\n' && isFirstLine){
-            isFirstLine=false;
-        }
-        if ((c=='\n' && !isFirstLine) || c == EOF){
-            isFirstLine=false;
-            numerOfStrings++;
-        }
-    } while (c != EOF);
-    
-    intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
-    intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
-    
-    for(int i=0; i<numerOfStrings*2; ++i)
-        intervalsE[i] = (emax-emin)*intervals[i];
-    
-    // read data
-    
-    fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
-    
-    double parsedNumber;
-    int numInSymb=0;
-    symb[0]='\0';
-    intervalsNum = 0;
-    
-    do {
-        c = fgetc(file);
-        
-        if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
-            if (numInSymb!=0){
-                sscanf(symb, "%lf", &parsedNumber);
-                intervals[intervalsNum] = parsedNumber;
-                intervalsE[intervalsNum] = (emax-emin) * parsedNumber + emin;
-                
-                numInSymb=0;
-                ++intervalsNum;
-            }
-        } else {
-            symb[numInSymb] = c;
-            symb[numInSymb+1] = '\0';
-            ++numInSymb;
-        }
-    } while (c != EOF);
-    
-    fclose(file);
-    
-    return 1;
 }
