@@ -165,6 +165,8 @@ int main(void)
     normalize();
     //dumpArrays();
 
+    ///FILE *f = fopen("dos.dat", "w");
+    
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
@@ -173,9 +175,10 @@ int main(void)
                 printf("Error with memory working7");
 #endif
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
+            ///fprintf(f, "%e  %e\n",(double)ie/PRECISION+emin,g[ie]);
         }
     }
-
+    ///fclose(f); 
     
     
     complete(); //  все пашет)

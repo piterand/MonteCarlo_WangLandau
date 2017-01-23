@@ -1,9 +1,3 @@
-//Вынести реализации функций 
-//gupdate, 
-//dumpArrays, 
-//readCSV, 
-//readCSVintervals
-
 
 // нормализация g[E]
 void gupdate()
