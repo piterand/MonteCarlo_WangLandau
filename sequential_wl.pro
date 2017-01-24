@@ -3,4 +3,5 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += sequential_wl.c
+SOURCES += sequential_wl.c \
+    common.c

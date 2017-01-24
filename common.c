@@ -1,5 +1,17 @@
-
+/*
+ * common.c
+ *
+ *       Common functions for sequentional and parallel WL method for different magnetic systems
+ *
+ *
+ *  programmed by:
+ *           Makarov Aleksandr
+ *           Andriushchenko Petr
+ *           Shevchenko Yuriy
+ *
+ */
 // нормализация g[E]
+
 void gupdate()
 {
     /* set min of g[ie] as 1 */
@@ -172,74 +184,5 @@ int readCSV(char *filename){
     hist = (unsigned *) malloc(histSize*sizeof(unsigned));
     nonzero = (int *) malloc(histSize*sizeof(int));
 
-    return 1;
-}
-
-int readCSVintervals(char *filename){
-    int numerOfStrings = 0;
-    char c;                         //считаный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
-    
-    //get system sizes
-    bool isFirstLine=true;
-    FILE *file = fopen(filename, "r");
-    
-    if (!file)
-        return 0;
-    
-    while(fgetc(file)=='#')     //пропуск комментариев и пустой строки
-    {
-        fscanf(file,"%[^\n]%*c",symb);
-    }
-    fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
-    int coursor=ftell(file);       // положение курсора начала данных
-    
-    do{
-        c = fgetc(file);
-        if (c=='\n' && isFirstLine){
-            isFirstLine=false;
-        }
-        if ((c=='\n' && !isFirstLine) || c == EOF){
-            isFirstLine=false;
-            numerOfStrings++;
-        }
-    } while (c != EOF);
-    
-    intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
-    intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
-    unsigned i;
-    for( i=0; i<numerOfStrings*2; ++i)
-        intervalsE[i] = (emax-emin)*intervals[i];
-    
-    // read data
-    
-    fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
-    
-    double parsedNumber;
-    int numInSymb=0;
-    symb[0]='\0';
-    intervalsNum = 0;
-    
-    do {
-        c = fgetc(file);
-        
-        if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
-            if (numInSymb!=0){
-                sscanf(symb, "%lf", &parsedNumber);
-                intervals[intervalsNum] = parsedNumber;
-                intervalsE[intervalsNum] = (emax-emin) * parsedNumber + emin;
-                
-                numInSymb=0;
-                ++intervalsNum;
-            }
-        } else {
-            symb[numInSymb] = c;
-            symb[numInSymb+1] = '\0';
-            ++numInSymb;
-        }
-    } while (c != EOF);
-    
-    fclose(file);
-    
     return 1;
 }

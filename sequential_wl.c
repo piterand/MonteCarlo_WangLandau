@@ -1,7 +1,7 @@
 /*
-        parallel_wl.c
+        sequential_wl.c
 
-        Wang-Landau method for different magnetic systems
+        Sequentional Wang-Landau method for different magnetic systems
 
            programmed by:
             Makarov Aleksandr
@@ -18,43 +18,46 @@
 #include <stdbool.h>
 
 
+
 unsigned n;                     //количество спинов
 signed char *spins;             //массив направления спинов. По умолчанию +1. n - число считанных спинов (число незакомментированных строк в csv-файле).
 unsigned short *a_neighbours;   //число соседей каждого спина. Считается как число энергий в соответствующей строке в csv-файле.
 unsigned short *neighbours;     //соседи каждого спина
 unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
 double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
-double *intervals;              //массив интервалов
-double *intervalsE;             //массив интервалов значений энергии
-int intervalsNum=0;             //число значений интервалов из файла
+//double *intervals;                  //массив интервалов для параллельного WL
+//double *intervalsE;                 //массив интервалов значений энергии для параллельного WL
+//int intervalsNum=0;                 //число значений интервалов из файла для параллельного WL
 double emin, emax;              //минимумы и максимумы энергии
 double e;                       //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
 double *g;                      // гистограмма g[E], только хранятся !логарифмы!.
-unsigned *visit;
-unsigned *hist;
-int *nonzero;
+unsigned *visit;                //
+unsigned *hist;                 // Гистограмма H
+int *nonzero;                   // Массив, была ли хоть раз посещена данная энергия 1 или 0
 
-double f;           // Модификационный фактор (уменьшается с каждым WL-шагом)
-double factor;      // Критерий плоскости гистограммы H
-unsigned nfinal;    // число WL-циклов
+double f;                       // Модификационный фактор (уменьшается с каждым WL-шагом)
+double factor = 0.8;            // Критерий плоскости гистограммы H
+unsigned nfinal = 24;           // число WL-циклов
 
-#define PRECISION 1e2             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
-// (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
+#define PRECISION 1e2           // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+                                // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
-#define DEBUG true
+#define DEBUG false             // Режим дебага для отлавливания утечек памяти
 
-void rotate(int spin);                  // Считает энергию системы
+void rotate(int spin);          // Считает энергию системы
 void complete();
 
-void mc(double eFrom, double eTo);
-void single(double eFrom, double eTo);
+#include "common.c"             //подключить файл с общими функциями для параллельного и последовательного варианта WL
+
+void mc();
+void single();
 void normalize();
 
 
-#include "common.c"
+
 
 int main(void)
 {
@@ -71,15 +74,15 @@ int main(void)
         return 0;
     }
 
+/*
+    char intervalsFile[50] = "csv_examples/intervals.csv";          /// для параллельного WL
     
-    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
-    
-    if (!readCSVintervals(intervalsFile)){                          ///new
+    if (!readCSVintervals(intervalsFile)){                          ///для параллельного WL
         printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
         return 0;
     }
     
-
+*/
     printf("\n");
     printf("# spins:");
     for (i=0;i<n;i++){
@@ -129,7 +132,7 @@ int main(void)
 
 
     printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
-
+/*
     if (false){         // !DEBUG если true - загнать модель изинга в минимум
         rotate(1);
         rotate(3);
@@ -147,8 +150,7 @@ int main(void)
     
     //*
     
-    factor = 0.8;       // Критерий плоскости гистограммы H
-    nfinal = 24;        // число WL-циклов
+*/
     
     unsigned ie;
     for(ie=0; ie<histSize; ie++){
@@ -161,7 +163,7 @@ int main(void)
     
     srand(seed);
 
-    mc(intervalsE[0],intervalsE[1]);
+    mc();
     normalize();
     //dumpArrays();
 
@@ -181,7 +183,7 @@ int main(void)
     ///fclose(f); 
     
     
-    complete(); //  все пашет)
+    complete(); //очистка памяти
 }
 
 /// Переворот спина, подсчет изменения энергии
@@ -214,7 +216,7 @@ void complete(){
     free(nonzero);
 }
 /// Монтекарло шаг
-void mc(double eFrom, double eTo)
+void mc()
 /*
         monte carlo update
 */
@@ -236,7 +238,7 @@ void mc(double eFrom, double eTo)
         nonzero[ie]=0;
     }
 
-    for( tt = 0; tt <= nfinal; tt++){    // !!! Кто придумал в качестве итератора WL-шагов использовать n? , я исправил на tt
+    for( tt = 0; tt <= nfinal; tt++){    // WL цикл
 
         flag=0;
         step=0;
@@ -250,7 +252,7 @@ void mc(double eFrom, double eTo)
 
         while(flag == 0){
 
-            single(intervalsE[0],intervalsE[1]);
+            single();
 
             step++;
 
@@ -304,7 +306,7 @@ void mc(double eFrom, double eTo)
 
 }
 
-void single(double eFrom, double eTo)
+void single()
 /*   single spin flip */    // нифига не сингл флип, а n spins flips.
 {
     unsigned la,la1;        // итераторы
@@ -336,12 +338,13 @@ void single(double eFrom, double eTo)
             e = energyOld;          // обратно записываем старую энергию
             enKey = eoKey;          // берем старый столбик гистограммы
         }
-        
-        if(e < eFrom && e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
-            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
-            e = energyOld;          // обратно записываем старую энергию
-            enKey = eoKey;          // берем старый столбик гистограммы
-        }
+
+// для параллельного WL
+//        if(e < eFrom && e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
+//            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
+//            e = energyOld;          // обратно записываем старую энергию
+//            enKey = eoKey;          // берем старый столбик гистограммы
+//        }
         
         g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы (так как тут хрянятся логарифмы)
         visit[enKey] += 1;
