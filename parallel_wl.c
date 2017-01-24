@@ -1,4 +1,4 @@
-/*
+/**
         parallel_wl.c
 
         Parallel Wang-Landau method for different magnetic systems
@@ -42,7 +42,10 @@ double f;                       // Модификационный фактор (
 double factor;                  // Критерий плоскости гистограммы H
 unsigned nfinal;                // число WL-циклов
 
-#define PRECISION 1e2           //Сколько знаков учитывать в энергии после запятой
+#define PRECISION 1e2             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+// (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
+
+#define DEBUG true
 
 void rotate(int spin);          // Считает энергию системы
 void complete();
@@ -93,8 +96,9 @@ int main(int argc, char **argv)
         printf("%lf \n", intervalsE[i]);
     }
     
-    
     printf("\n");
+
+#ifdef DEBUG
     printf("# spins:");
     for (unsigned i=0;i<n;i++){
         printf("%d,",spins[i]);
@@ -124,30 +128,17 @@ int main(int argc, char **argv)
         printf("%f,",energies[i]);
     }
     printf("\n");
-
+#endif
 
 
     printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
-
-    if (false){ // если true - загнать модель изинга в минимум
-        rotate(1);
-        rotate(3);
-        rotate(4);
-        rotate(6);
-        rotate(9);
-        rotate(11);
-        rotate(12);
-        rotate(14);
-    }
 
     printf("\n# e = %lf\n",e);
     
     printf("# initial energy = %lf\n",e);
     
-    //*
-    
-    factor = 0.8;
-    nfinal = 24; //изменить, не понял что это
+    factor = 0.8; // Критерий плоскости гистограммы H
+    nfinal = 24; // число WL-циклов
     
     unsigned ie;
     for(ie=0; ie<=eCount; ie++){
@@ -164,10 +155,8 @@ int main(int argc, char **argv)
         printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
       }
     }
-    //*/
     
-    
-    // complete(); //чето отчистка не пашет
+    complete();
     
     
     MPI_Finalize();
@@ -183,8 +172,8 @@ void rotate(int spin){
     e += dE;
 }
 
+// clean arrays
 void complete(){
-    // clean arrays
     free(spins);
     free(a_neighbours);
     free(neighbours);
@@ -199,10 +188,11 @@ void complete(){
     free(intervalsE);
 }
 
-void mc(double eFrom, double eTo)
+
 /*
         monte carlo update
 */
+void mc(double eFrom, double eTo)
 {
   unsigned ie,tt;
   int check,flag;
@@ -256,7 +246,7 @@ void mc(double eFrom, double eTo)
           }
         }
 
-        if (false && step%100000) //написать true для дебаг-вывода в файл
+        if (false && step%100000) //написать true для дебаг-вывода в файл каждые 100000 шагов
             dumpArrays();
 
         if(check==1){flag++;}
@@ -275,9 +265,9 @@ void mc(double eFrom, double eTo)
 
 }
 
-void single(double eFrom, double eTo)
-/*   single spin flip */    // нифига не сингл флип, а n spins flips.
-{
+
+/*   single spin flip */
+void single(double eFrom, double eTo){
     unsigned la,la1;        // итераторы
     double energyOld;       // старая энергия
     double ga,gb;           // g[старой энергии] и g[новой энергии]
@@ -292,6 +282,7 @@ void single(double eFrom, double eTo)
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
+
 
         ga = g[eoKey];          // g[старой энергии]
         gb = g[enKey];          // g[новой энергии]

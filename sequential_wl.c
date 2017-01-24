@@ -1,5 +1,6 @@
-/*
+/**
         sequential_wl.c
+
 
         Sequentional Wang-Landau method for different magnetic systems
 
@@ -84,73 +85,45 @@ int main(void)
     
 */
     printf("\n");
+
+#ifdef DEBUG
     printf("# spins:");
     for (i=0;i<n;i++){
-#ifdef DEBUG
         if (i>=n || i<0) printf("Error with memory working1");
-#endif
         printf("%d,",spins[i]);
     }
     printf("\n");
 
     printf("# a_neighbours:");
     for (i=0;i<n;i++){
-#ifdef DEBUG
         if (i>=n || i<0) printf("Error with memory working2");
-#endif
         printf("%d,",a_neighbours[i]);
     }
     printf("\n");
 
     printf("# sequencies:");
     for (i=0;i<n;i++){
-#ifdef DEBUG
         if (i>=n || i<0) printf("Error with memory working3");
-#endif
         printf("%d,",sequencies[i]);
     }
     printf("\n");
 
     printf("# neighbours:");
     for (i=0;i<eCount;i++){
-#ifdef DEBUG
         if (i>=eCount || i<0) printf("Error with memory working4");
-#endif
         printf("%d,",neighbours[i]);
     }
     printf("\n");
 
     printf("# energies:");
     for (i=0;i<eCount;i++){
-#ifdef DEBUG
         if (i>=eCount || i<0) printf("Error with memory working5");
-#endif
         printf("%f,",energies[i]);
     }
     printf("\n");
+#endif
 
-
-
-    printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
-/*
-    if (false){         // !DEBUG если true - загнать модель изинга в минимум
-        rotate(1);
-        rotate(3);
-        rotate(4);
-        rotate(6);
-        rotate(9);
-        rotate(11);
-        rotate(12);
-        rotate(14);
-    }
-
-    printf("\n# e = %lf\n",e);
-    
-    printf("# initial energy = %lf\n",e);
-    
-    //*
-    
-*/
+    printf("\n#  initial energy = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
     
     unsigned ie;
     for(ie=0; ie<histSize; ie++){
@@ -165,9 +138,6 @@ int main(void)
 
     mc();
     normalize();
-    //dumpArrays();
-
-    ///FILE *f = fopen("dos.dat", "w");
     
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
@@ -177,17 +147,17 @@ int main(void)
                 printf("Error with memory working7");
 #endif
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
-            ///fprintf(f, "%e  %e\n",(double)ie/PRECISION+emin,g[ie]);
         }
     }
-    ///fclose(f); 
     
     
+
     complete(); //очистка памяти
-}
+
 
 /// Переворот спина, подсчет изменения энергии
-void rotate(int spin){
+void rotate(int spin)
+{
     unsigned i;
     double dE=0;
     spins[spin] *= -1;
@@ -201,8 +171,11 @@ void rotate(int spin){
     }
     e += dE;
 }
+
+
 /// Очистка памяти
-void complete(){
+void complete()
+{
     // clean arrays
     free(spins);
     free(a_neighbours);
@@ -215,12 +188,13 @@ void complete(){
     free(hist);
     free(nonzero);
 }
+
+
 /// Монтекарло шаг
-void mc()
+void mc(){
 /*
         monte carlo update
 */
-{
     unsigned ie,tt; //итераторы
     int check,flag;
     int step, totalstep;
@@ -237,6 +211,7 @@ void mc()
 #endif
         nonzero[ie]=0;
     }
+
 
     for( tt = 0; tt <= nfinal; tt++){    // WL цикл
 
@@ -287,7 +262,7 @@ void mc()
                     }                                                 // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
                 }
 
-                if (false && step%100000) //написать true для дебаг-вывода в файл
+                if (false && step%100000) //написать true для дебаг-вывода в файл каждые 100000 шагов
                     dumpArrays();
 
                 if(check==1){flag++;}
@@ -300,23 +275,22 @@ void mc()
 
         printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
 
-        f = f/2;    // !! НЕОБХОДИМО ИСПРАВИТЬ НА t, при чем t пропорционально шагу моделирования !!  doi:10.1063/1.2803061
+        f = f/2;
     }
     printf("# final   MCS=%9d\n",totalstep);
 
 }
 
-void single()
-/*   single spin flip */    // нифига не сингл флип, а n spins flips.
-{
+<<<<<<< HEAD
+void single(){
+// n spins flips.
+
     unsigned la,la1;        // итераторы
     double energyOld;       // старая энергия
     double ga,gb;           // g[старой энергии] и g[новой энергии]
 
     int eoKey, enKey;       // номер столбика гистограммы энергий старой и новой
     
-    
-    //проверить весь алгоритм!!!!!!!!!!!!!!!!
     for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз, не знаю почему
         la=rand()%n;            // выбираем случайный спин
         energyOld = e;          // записываем старую энергию
@@ -339,19 +313,13 @@ void single()
             enKey = eoKey;          // берем старый столбик гистограммы
         }
 
-// для параллельного WL
-//        if(e < eFrom && e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
-//            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
-//            e = energyOld;          // обратно записываем старую энергию
-//            enKey = eoKey;          // берем старый столбик гистограммы
-//        }
-        
         g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы (так как тут хрянятся логарифмы)
         visit[enKey] += 1;
         hist[enKey]  += 1;
     }
 }
 
+// нормализация гистограммы
 void normalize()
 {
     unsigned ie;
