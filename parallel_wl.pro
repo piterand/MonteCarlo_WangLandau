@@ -6,8 +6,8 @@ QMAKE_LINK = $$QMAKE_CXX
 QMAKE_CC = mpicc
 #
 
--QT += core
--QT -= gui
+QT += core
+QT -= gui
 
 TEMPLATE = app
 CONFIG += console
