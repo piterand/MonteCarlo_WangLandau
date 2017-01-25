@@ -61,17 +61,25 @@ int main(void)
     unsigned i;
     unsigned long seed=0;                 // Random seed
     printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
-    scanf("%u",&seed);
+    if (scanf("%lu",&seed) == 1){}
+    else{
+        printf("# Error! Failed to read integer seed!\n");
+        return 0;
+    }
+
+
     char filename[100];
     printf("# Please, input target filename: ");
-    scanf("%s",filename);
+    if( scanf("%s",filename)==1){}
+    else{
+        printf("# Error! Failed to read file name!\n");
+        return 0;
+    }
 
     if (!readCSV(filename)){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
-
-    printf("\n");
 
 #ifdef DEBUG
     printf("# spins:");
@@ -125,7 +133,8 @@ int main(void)
 
     mc();
     normalize();
-    
+
+    // вывод
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
@@ -136,8 +145,6 @@ int main(void)
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
         }
     }
-    
-    
 
     complete(); //очистка памяти
 }

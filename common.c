@@ -81,7 +81,8 @@ int readCSV(char *filename){
 
     while(c = fgetc(file)=='#')     //пропуск комментариев
     {
-        fscanf(file,"%[^\n]%*c",symb);
+        if(fscanf(file,"%[^\n]%*c",symb)==1){}
+        else{printf("# Error! Failed to read file!\n");}
     }
     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
     int coursor=ftell(file);       // положение курсора начала данных
