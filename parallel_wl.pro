@@ -6,6 +6,8 @@ QMAKE_LINK = $$QMAKE_CXX
 QMAKE_CC = mpicc
 #
 
+CONFIG -= qt
+
 TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle

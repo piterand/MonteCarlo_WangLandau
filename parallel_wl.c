@@ -33,6 +33,7 @@ double e;                       //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
+
 double *g;
 unsigned *visit;
 unsigned *hist;
@@ -47,6 +48,7 @@ unsigned nfinal;                // число WL-циклов
 
 #define DEBUG true
 
+int readCSVintervals(char *filename); //считывает интервалы из файла
 void rotate(int spin);          // Считает энергию системы
 void complete();
 
