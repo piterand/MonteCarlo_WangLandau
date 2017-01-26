@@ -66,7 +66,7 @@ void dumpArrays(){
 int readCSV(char *filename){
 
     char c;                         //считанный из файла символ
-    char symb[1000];                 //символ энергии в текстовом файле
+    char symb[100000];                 //символ энергии в текстовом файле
 
     //get system sizes
     bool isFirstLine=true;
@@ -79,10 +79,10 @@ int readCSV(char *filename){
     int fpos = 1, lastFpos=0;
     int count_n=0;
 
-    while(c = fgetc(file)=='#')     //пропуск комментариев
-    {
-        fscanf(file,"%[^\n]%*c",symb);
+    for(c=fgetc(file);c=='\n'||c=='\r'||c=='#';c=fgetc(file)){ //пропуск комментариев
+        fgets(symb,100000,file);
     }
+
     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
     int coursor=ftell(file);       // положение курсора начала данных
 

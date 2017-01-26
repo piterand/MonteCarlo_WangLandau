@@ -62,17 +62,25 @@ int main(void)
     unsigned i;
     unsigned long seed=0;       // Random seed
     printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
-    scanf("%u",&seed);
+    if (scanf("%lu",&seed) == 1){}
+    else{
+        printf("# Error! Failed to read integer seed!\n");
+        return 0;
+    }
+
+
     char filename[100];
     printf("# Please, input target filename: ");
-    scanf("%s",filename);
+    if( scanf("%s",filename)==1){}
+    else{
+        printf("# Error! Failed to read file name!\n");
+        return 0;
+    }
 
     if (!readCSV(filename)){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
-
-    printf("\n");
 
 #ifdef DEBUG
     printf("# spins:");
@@ -127,8 +135,8 @@ int main(void)
     mc();
     normalize();
     
-    FILE *file;
-    file = fopen("dos.dat","w");
+    FILE *file;						//это надо Сане
+    file = fopen("dos.dat","w");	//это надо Сане
     
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
@@ -138,12 +146,11 @@ int main(void)
                 printf("Error with memory working7");
 #endif
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
-            fprintf (file, "%e  %e\n",(double)ie/PRECISION+emin,g[ie]);
+            fprintf (file, "%e  %e\n",(double)ie/PRECISION+emin,g[ie]);	//и это надо Сане
         }
     }
-    fclose(file);
+    fclose(file);					//вот это тоже надо Сане
     
-
     complete(); //очистка памяти
 }
 

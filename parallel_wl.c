@@ -341,7 +341,7 @@ void normalize()
 int readCSVintervals(char *filename){
     int numerOfStrings = 0;
     char c;                         //считаный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
+    char symb[100000];                 //символ энергии в текстовом файле
     
     //get system sizes
     bool isFirstLine=true;
@@ -350,10 +350,10 @@ int readCSVintervals(char *filename){
     if (!file)
         return 0;
     
-    while(fgetc(file)=='#')     //пропуск комментариев и пустой строки
-    {
-        fscanf(file,"%[^\n]%*c",symb);
+    for(c=fgetc(file);c=='\n'||c=='\r'||c=='#';c=fgetc(file)){ //пропуск комментариев
+        fgets(symb,100000,file);
     }
+
     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
     int coursor=ftell(file);       // положение курсора начала данных
     
