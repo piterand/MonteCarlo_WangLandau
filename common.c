@@ -66,7 +66,7 @@ void dumpArrays(){
 int readCSV(char *filename){
 
     char c;                         //считанный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
+    char symb[1000];                 //символ энергии в текстовом файле
 
     //get system sizes
     bool isFirstLine=true;

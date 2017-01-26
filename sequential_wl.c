@@ -40,7 +40,8 @@ double f;                       // Модификационный фактор (
 double factor = 0.8;            // Критерий плоскости гистограммы H
 unsigned nfinal = 24;           // число WL-циклов
 
-#define PRECISION 1e2           // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+#define PRECISION 1e2
+// Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
                                 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 //#define DEBUG true             // Режим дебага для отлавливания утечек памяти
@@ -59,7 +60,7 @@ void normalize();
 int main(void)
 {
     unsigned i;
-    unsigned long seed=0;                 // Random seed
+    unsigned long seed=0;       // Random seed
     printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
     scanf("%u",&seed);
     char filename[100];
@@ -126,6 +127,9 @@ int main(void)
     mc();
     normalize();
     
+    FILE *file;
+    file = fopen("dos.dat","w");
+    
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
@@ -134,9 +138,10 @@ int main(void)
                 printf("Error with memory working7");
 #endif
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
+            fprintf (file, "%e  %e\n",(double)ie/PRECISION+emin,g[ie]);
         }
     }
-    
+    fclose(file);
     
 
     complete(); //очистка памяти
@@ -192,7 +197,7 @@ void mc(){
     totalstep=0;
     f=1;
 
-    for(ie=0; ie<histSize; ie++){    //обнуляем массив nonzero
+    for(ie=0; ie<histSize; ie++){       //обнуляем массив nonzero
 #ifdef DEBUG
         if (ie>=histSize || ie<0) printf("Error with memory working12");
 #endif
@@ -218,7 +223,7 @@ void mc(){
 
             step++;
 
-            if(step%1000==0){         // каждые 1000 шагов
+            if(step%1000==0){             // каждые 1000 шагов
 
                 for(ie=0; ie<histSize; ie++){
 #ifdef DEBUG
@@ -240,13 +245,13 @@ void mc(){
                 }
 
                 check=1;
-                for(ie=0; ie<histSize; ie++){                      // проверка на плоскоту
+                for(ie=0; ie<histSize; ie++){           // проверка на плоскоту
 #ifdef DEBUG
                     if (ie>=histSize || ie<0) printf("Error with memory working5");
 #endif
                     if(nonzero[ie]==1) {
                         if(visit[ie] < factor*(sum/count)){check=0;}    // sum/count = среднее значение количества посещений энергий
-                    }                                                 // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
+                    }                                                   // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
                 }
 
                 if (false && step%100000) //написать true для дебаг-вывода в файл каждые 100000 шагов
@@ -271,16 +276,16 @@ void mc(){
 void single(){
 // n spins flips.
 
-    unsigned la,la1;        // итераторы
-    double energyOld;       // старая энергия
-    double ga,gb;           // g[старой энергии] и g[новой энергии]
+    unsigned la,la1;                // итераторы
+    double energyOld;               // старая энергия
+    double ga,gb;                   // g[старой энергии] и g[новой энергии]
 
-    int eoKey, enKey;       // номер столбика гистограммы энергий старой и новой
+    int eoKey, enKey;               // номер столбика гистограммы энергий старой и новой
     
     for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз, не знаю почему
-        la=rand()%n;            // выбираем случайный спин
-        energyOld = e;          // записываем старую энергию
-        rotate(la);             // переворачиваем выбранный спин
+        la=rand()%n;                // выбираем случайный спин
+        energyOld = e;              // записываем старую энергию
+        rotate(la);                 // переворачиваем выбранный спин
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
@@ -290,8 +295,8 @@ void single(){
         if (la>=n || la<0) printf("Error with memory working12");
 #endif
 
-        ga = g[eoKey];          // g[старой энергии]
-        gb = g[enKey];          // g[новой энергии]
+        ga = g[eoKey];              // g[старой энергии]
+        gb = g[enKey];              // g[новой энергии]
         
         if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
             spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин

@@ -13,4 +13,5 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += parallel_wl.c
+SOURCES += parallel_wl.c \
+    common.c
