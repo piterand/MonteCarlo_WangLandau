@@ -153,9 +153,12 @@ int readCSV(char *filename){
             }
             ++col;
         } else {
+            if(c=='\r'){}
+            else{
             symb[numInSymb] = c;
             symb[numInSymb+1] = '\0';
             ++numInSymb;
+            }
         }
 
         if (c=='\n'){
