@@ -19,10 +19,10 @@
 #include "mpi.h"
 
 
-unsigned n;                     // количество спинов
+unsigned n;                     //количество спинов
 signed char *spins;             //массив направления спинов. По умолчанию +1. n - число считанных спинов (число незакомментированных строк в csv-файле).
 unsigned short *a_neighbours;   //число соседей каждого спина. Считается как число энергий в соответствующей строке в csv-файле.
-unsigned short *neighbours;     // соседи каждого спина
+unsigned short *neighbours;     //соседи каждого спина
 unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
 double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
 double *intervals;              //массив интервалов
@@ -43,8 +43,8 @@ double f;                       // Модификационный фактор (
 double factor;                  // Критерий плоскости гистограммы H
 unsigned nfinal;                // число WL-циклов
 
-#define PRECISION 1e2             // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
-// (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
+#define PRECISION 1e1           // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+                                // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 #define DEBUG true
 
@@ -63,41 +63,54 @@ int main(int argc, char **argv)
 {
     MPI_Init(&argc,&argv);      //инициализация mpi
     int rank, size;
-    
+
     MPI_Comm_size(MPI_COMM_WORLD, &size); //получение числа процессов
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank); //текущий id процесса
-	printf("size = %d, rank = %d\n", size, rank);
-    
-    
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //текущий id процесса
+    printf("size = %d, rank = %d\n", size, rank);
+
     int seed=0;                 // Random seed
-    printf("# Please, input random number seed:  ");
-    scanf("%u",&seed);
+    char filename[100]="/home/petr/scienceworks/Programs_with_Git/wanglandauparallel/csv_examples/simplest_exmple.csv";         // целевой файл с энергиями
+    char filenameinterval[100]="/home/petr/scienceworks/Programs_with_Git/wanglandauparallel/csv_examples/intervals.csv"; // целевой файл с интервалами
+
+    if(rank==0)
+    {
+        printf("# Please, input random number seed:  ");
+        scanf("%u",&seed);
+
+        printf("# Please, input target energy filename: ");
+        scanf("%s",filename);
+
+//        printf("# Please, input target interval filename: ");
+//        scanf("%s",filenameinterval);
+    }
+
+    MPI_Bcast(&seed,1, MPI_INT, 0, MPI_COMM_WORLD);
+
     seed += rank;
-    char filename[100];
-    printf("# Please, input target filename: ");
-    scanf("%s",filename);
+
+    printf("rank = %d\n seed = %d\n", rank,seed);
 
     if (!readCSV(filename)){
-        printf("# Error! File '%s' is unavaliable!\n",filename);
+        printf("# Error!! File '%s' is unavaliable!\n",filename);
         return 0;
     }
 
-    
-    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
-    
-    if (!readCSVintervals(intervalsFile)){                          ///new
-        printf("# Error! File '%s' is unavaliable!\n", intervalsFile);
+
+//    char intervalsFile[50] = "csv_examples/intervals.csv";          ///new
+
+    if (!readCSVintervals("csv_examples/intervals.csv")){                          ///new
+        printf("# Error! File '%s' is unavaliable!\n", filenameinterval);
         return 0;
     }
-    
+
     for(int i=0; i < intervalsNum; ++i){
         printf("%lf \n", intervals[i]);
     }
-    
+
     for(int i=0; i < intervalsNum; ++i){
         printf("%lf \n", intervalsE[i]);
     }
-    
+
     printf("\n");
 
 #ifdef DEBUG
@@ -136,18 +149,18 @@ int main(int argc, char **argv)
     printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
 
     printf("\n# e = %lf\n",e);
-    
+
     printf("# initial energy = %lf\n",e);
-    
+
     factor = 0.8; // Критерий плоскости гистограммы H
     nfinal = 24; // число WL-циклов
-    
+
     unsigned ie;
     for(ie=0; ie<=eCount; ie++){
       g[ie]=0;
       hist[ie]=0;
     }
-    
+
     srand(seed);
     mc(intervalsE[0],intervalsE[1]);
     normalize();
@@ -157,11 +170,11 @@ int main(int argc, char **argv)
         printf("%e  %e  %e  %d\n",(double)(ie+emin)/PRECISION,g[ie],g[ie]/n,hist[ie]);
       }
     }
-    
+
     complete();
-    
-    
+
     MPI_Finalize();
+
     return 0;
 }
 
@@ -241,7 +254,7 @@ void mc(double eFrom, double eTo)
           }
         }
 
-        check=1; 
+        check=1;
         for(ie=0; ie<=histSize; ie++){
           if(nonzero[ie]==1) {
             if(visit[ie] < factor*(sum/count)){check=0;}
@@ -275,8 +288,8 @@ void single(double eFrom, double eTo){
     double ga,gb;           // g[старой энергии] и g[новой энергии]
 
     int eoKey, enKey;       // номер столбика гистограммы энергий старой и новой
-    
-    
+
+
     for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз, не знаю почему
         la=rand()%n;            // выбираем случайный спин
         energyOld = e;          // записываем старую энергию
@@ -288,19 +301,19 @@ void single(double eFrom, double eTo){
 
         ga = g[eoKey];          // g[старой энергии]
         gb = g[enKey];          // g[новой энергии]
-        
+
         if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
             spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
             e = energyOld;          // обратно записываем старую энергию
             enKey = eoKey;          // берем старый столбик гистограммы
         }
-        
+
         if(e < eFrom && e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
             spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
             e = energyOld;          // обратно записываем старую энергию
             enKey = eoKey;          // берем старый столбик гистограммы
         }
-        
+
         g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы (так как тут хрянятся логарифмы)
         visit[enKey] += 1;
         hist[enKey]  += 1;
@@ -311,7 +324,7 @@ void normalize()
 {
     unsigned ie;
     double gmax, sum, a;
-    
+
     gmax = -1000;
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
@@ -320,16 +333,16 @@ void normalize()
             }
         }
     }
-    
+
     sum=0;
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
             sum += exp(g[ie]-gmax);
         }
     }
-    
+
     a = n*log(2) - gmax - log(sum);
-    
+
     for(ie=0; ie<histSize; ie++){
         if (nonzero[ie] == 1) {
             g[ie] += a;
@@ -342,21 +355,21 @@ int readCSVintervals(char *filename){
     int numerOfStrings = 0;
     char c;                         //считаный из файла символ
     char symb[100000];                 //символ энергии в текстовом файле
-    
+
     //get system sizes
     bool isFirstLine=true;
     FILE *file = fopen(filename, "r");
-    
+
     if (!file)
         return 0;
-    
+
     for(c=fgetc(file);c=='\n'||c=='\r'||c=='#';c=fgetc(file)){ //пропуск комментариев
         fgets(symb,100000,file);
     }
 
     fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
     int coursor=ftell(file);       // положение курсора начала данных
-    
+
     do{
         c = fgetc(file);
         if (c=='\n' && isFirstLine){
@@ -367,31 +380,31 @@ int readCSVintervals(char *filename){
             numerOfStrings++;
         }
     } while (c != EOF);
-    
+
     intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
     intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
     unsigned i;
     for( i=0; i<numerOfStrings*2; ++i)
         intervalsE[i] = (emax-emin)*intervals[i];
-    
+
     // read data
-    
+
     fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
-    
+
     double parsedNumber;
     int numInSymb=0;
     symb[0]='\0';
     intervalsNum = 0;
-    
+
     do {
         c = fgetc(file);
-        
+
         if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
             if (numInSymb!=0){
                 sscanf(symb, "%lf", &parsedNumber);
                 intervals[intervalsNum] = parsedNumber;
                 intervalsE[intervalsNum] = (emax-emin) * parsedNumber + emin;
-                
+
                 numInSymb=0;
                 ++intervalsNum;
             }
@@ -401,78 +414,8 @@ int readCSVintervals(char *filename){
             ++numInSymb;
         }
     } while (c != EOF);
-    
-    fclose(file);
-    
-    return 1;
-}
 
-
-int readCSVintervals(char *filename){
-    int numerOfStrings = 0;
-    char c;                         //считаный из файла символ
-    char symb[100];                 //символ энергии в текстовом файле
-    
-    //get system sizes
-    bool isFirstLine=true;
-    FILE *file = fopen(filename, "r");
-    
-    if (!file)
-        return 0;
-    
-    while(fgetc(file)=='#')     //пропуск комментариев и пустой строки
-    {
-        fscanf(file,"%[^\n]%*c",symb);
-    }
-    fseek(file,-1,SEEK_CUR);       // сдвиг курсора на один символ назад
-    int coursor=ftell(file);       // положение курсора начала данных
-    
-    do{
-        c = fgetc(file);
-        if (c=='\n' && isFirstLine){
-            isFirstLine=false;
-        }
-        if ((c=='\n' && !isFirstLine) || c == EOF){
-            isFirstLine=false;
-            numerOfStrings++;
-        }
-    } while (c != EOF);
-    
-    intervals = (double *) calloc(numerOfStrings*2,sizeof(double));
-    intervalsE = (double *) calloc(numerOfStrings*2,sizeof(double));
-    unsigned i;
-    for( i=0; i<numerOfStrings*2; ++i)
-        intervalsE[i] = (emax-emin)*intervals[i];
-    
-    // read data
-    
-    fseek(file,coursor,SEEK_SET);      //устанавливаем курсор в начало данных
-    
-    double parsedNumber;
-    int numInSymb=0;
-    symb[0]='\0';
-    intervalsNum = 0;
-    
-    do {
-        c = fgetc(file);
-        
-        if (c==';' || c=='\n' || c == EOF){ //if we found a number, process it
-            if (numInSymb!=0){
-                sscanf(symb, "%lf", &parsedNumber);
-                intervals[intervalsNum] = parsedNumber;
-                intervalsE[intervalsNum] = (emax-emin) * parsedNumber + emin;
-                
-                numInSymb=0;
-                ++intervalsNum;
-            }
-        } else {
-            symb[numInSymb] = c;
-            symb[numInSymb+1] = '\0';
-            ++numInSymb;
-        }
-    } while (c != EOF);
-    
     fclose(file);
-    
+
     return 1;
 }
