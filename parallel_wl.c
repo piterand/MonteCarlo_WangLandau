@@ -25,19 +25,25 @@ unsigned short *a_neighbours;   //число соседей каждого сп�
 unsigned short *neighbours;     //соседи каждого спина
 unsigned int *sequencies;       //для каждого спина описывает, с какого ключа в массиве energies[] начинают описываться парные энергии
 double *energies;               //сами энергии из файла. Описывается как одномерный массив. Длина массива - число парных энергий в csv-файле.
-double *intervals;              //массив интервалов
-double *intervalsE;             //массив интервалов значений
-int intervalsNum=0;             //число значений интервалов из файла
 double emin, emax;              //минимумы и максимумы энергии
 double e;                       //текущая энергия системы
 unsigned eCount=0;              //число пар энергий
 unsigned histSize=0;            //число элементов в гистограммах
 
-// для функции exchanage
-char exchange_buffer[100];      //
-double exchange_energy;
-double exchange_Ge;
+// для параллельного кода
+double *intervals;              //массив интервалов
+double *intervalsE;             //массив интервалов значений
+int intervalsNum=0;             //число значений интервалов из файла
+double emin_for_current_rank, emax_for_current_rank; //минимумы и максимумы энергии для конкретного процесса
 int rank, size;
+
+// для функции exchanage
+char exchange_buffer[10000];    //буфер обмена !! Должен быть больше количества спинов в системе!!
+double exchange_energy;         //обмениваемое значение энергии
+double exchange_Ge_a;           //обмениваемое значение G(энергии)
+double exchange_Ge_b;           //обмениваемое значение G(энергии)
+signed char *exchange_spins;
+bool exchange_status;
 
 
 double *g;
@@ -115,7 +121,23 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    // тут нужно написать распределение интервалов по процессам, пока делаем вручную
+    //printf("\n!!!intervalsNum=%d\n",intervalsNum);
 
+    if(size>intervalsNum/2){
+        if(rank=0){
+            printf("\n!!!Error, please enater corresponding number of process equal number of intervals = %d",intervalsNum);
+        }
+        return 0;
+    }
+
+    exchange_spins=(signed char *) malloc(n*sizeof(signed char));   //массив спинов для обмена
+
+    if(rank<intervalsNum/2){
+        emin_for_current_rank=intervalsE[2*rank];
+        emax_for_current_rank=intervalsE[2*rank+1];
+        printf("\n!!!my rank=%d, emin=%f    emax=%f\n",rank,emin_for_current_rank, emax_for_current_rank);
+    }
 
 #ifdef DEBUG
 
@@ -162,13 +184,13 @@ int main(int argc, char **argv)
 #endif
 
 
-    printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
+ //   printf("\n# e = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
 
-    printf("# initial energy = %lf\n",e);
+//    printf("# initial energy = %lf\n",e);
 
 
     unsigned ie;
-    for(ie=0; ie<=histSize; ++ie){
+    for(ie=0; ie<histSize; ++ie){
       g[ie]=0;
       hist[ie]=0;
     }
@@ -179,12 +201,12 @@ int main(int argc, char **argv)
     exchange(0,1);
 
     // вывод
-    printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
-    for(ie=0; ie<=histSize; ie++){
-      if (nonzero[ie] == 1) {
-        printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
-      }
-    }
+//    printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
+//    for(ie=0; ie<histSize; ie++){
+//      if (nonzero[ie] == 1) {
+//        printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
+//      }
+//    }
 
     complete();
 
@@ -249,7 +271,7 @@ void mc(double eFrom, double eTo)
 
     while(flag == 0){
 
-      single(emin,emax);
+      single(eFrom,eTo);
 
 
       step++;
@@ -428,6 +450,16 @@ int readCSVintervals(char *filename){
     } while (c != EOF);
 
     fclose(file);
+    int tr=0;
+    //debug
+//    for(tr=0;tr<numerOfStrings*2;++tr)
+//    {
+//        printf("\nintervals[%d]=%f",tr,intervals[tr]);
+//    }
+//    for(tr=0;tr<numerOfStrings*2;++tr)
+//    {
+//        printf("\nintervalsE[%d]=%f",tr,intervalsE[tr]);
+//    }
 
     return 1;
 }
@@ -438,26 +470,82 @@ bool exchange(unsigned a, unsigned b){
 
     int position = 0;
     int current_energy = 0;
+    int current_energy2 = 0;
     MPI_Status status;
+    exchange_status = 1;
 
     if (rank == a)
      {
          current_energy = (int)((e-emin)*PRECISION);
-         printf("my rank=%d \n e=%f\ng[e]=%f\n", rank,e, g[current_energy]);
+         printf("#1Smy rank=%d   I send my e_a=%f    g_a[e_a]=%f\n", rank,e, g[current_energy]);//debug
 
          MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Send(exchange_buffer, position, MPI_PACKED, b, 100, MPI_COMM_WORLD);
+
+         //1st check
+         printf("\nCheck");
+         MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+         printf("\nCheck2");
+
+         if(exchange_status==0){
+             printf("\nCheck3");
+
+             return 0;
+         }
+
+
+         MPI_Recv(exchange_buffer, 10000, MPI_PACKED, a, 10000, MPI_COMM_WORLD, &status);
+         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
+         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_b, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+         MPI_Unpack(exchange_buffer, 10000, &position, spins, n,  MPI_SIGNED_CHAR, MPI_COMM_WORLD);
+         printf("#2Rmy rank=%d   exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,exchange_energy, exchange_Ge_b,exchange_Ge_a);//debug
+
+
      }
 
      if (rank == b)
      {
+         current_energy = (int)((e-emin)*PRECISION);
          MPI_Recv(exchange_buffer, 100, MPI_PACKED, a, 100, MPI_COMM_WORLD, &status);
          MPI_Unpack(exchange_buffer, 100, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
-         MPI_Unpack(exchange_buffer, 100, &position, &exchange_Ge, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
-         printf("my rank=%d \n e=%f\ng[e]=%f\n", rank,exchange_energy,exchange_Ge);
+         MPI_Unpack(exchange_buffer, 100, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+
+         printf("#1Rmy rank=%d   My e_b=%f g_b[e_b]=%f, and I recive e_a=%f    g_a[e_a]=%f\n", rank,e,g[current_energy],exchange_energy,exchange_Ge_a);//debug
+
+        //1st check
+         if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank){
+             exchange_status=0;
+             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+             return 0;
+         }
+
+         else{
+             //exchange_status=1;
+             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+
+             current_energy2 = (int)((exchange_energy-emin)*PRECISION);
+
+             printf("#2Smy rank=%d I send my exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,e, g[current_energy],g[current_energy2]);//debug
+             MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
+             MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
+             MPI_Pack(&g[current_energy2], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
+             MPI_Pack(spins, n,  MPI_SIGNED_CHAR, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
+             MPI_Send(exchange_buffer, position, MPI_PACKED, a, 10000, MPI_COMM_WORLD);
+
+
+         }
      }
-     //if (rank!=a && rank!=b){}
+
+
+     if (rank!=a && rank!=b){
+         //1st check
+         MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+         if(exchange_status==0)
+             return 0;
+
+     }
 
     return true;
 }
