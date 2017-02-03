@@ -199,6 +199,7 @@ int main(int argc, char **argv)
     mc(emin,emax);
     normalize();
     exchange(0,1);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // вывод
 //    printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
@@ -473,6 +474,9 @@ bool exchange(unsigned a, unsigned b){
     int current_energy2 = 0;
     MPI_Status status;
     exchange_status = 1;
+    double exchange_probobility;
+    double exchange_probobility_final;
+    double exchange_rand;
 
     if (rank == a)
      {
@@ -481,58 +485,105 @@ bool exchange(unsigned a, unsigned b){
 
          MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
-         MPI_Send(exchange_buffer, position, MPI_PACKED, b, 100, MPI_COMM_WORLD);
+         MPI_Send(exchange_buffer, position, MPI_PACKED, b, 100, MPI_COMM_WORLD);   // упаковкаи отсылка e_a и g_a(e_a)
 
-         //1st check
-         printf("\nCheck");
-         MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
-         printf("\nCheck2");
-
-         if(exchange_status==0){
-             printf("\nCheck3");
-
+         //1st check to exit
+         MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);    // recive signal, if 0 -> exit.
+         if(exchange_status==0)
              return 0;
+         else{
+
+             MPI_Recv(exchange_buffer, 10000, MPI_PACKED, b, 10000, MPI_COMM_WORLD, &status); // получаем от b e_b, g_b(e_b), g_b(e_a), и массив spins
+             MPI_Unpack(exchange_buffer, 10000, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
+             MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_b, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+             MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+             MPI_Unpack(exchange_buffer, 10000, &position, exchange_spins, n,  MPI_SIGNED_CHAR, MPI_COMM_WORLD);
+             printf("#2Rmy rank=%d   exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,exchange_energy, exchange_Ge_b,exchange_Ge_a);//debug
+
+             current_energy2=(int)((exchange_energy-emin)*PRECISION);
+             exchange_probobility =(g[current_energy]*exchange_Ge_b)/(exchange_Ge_a*g[current_energy2]);
+             if(exchange_probobility<1)
+                 exchange_probobility_final=exchange_probobility;
+             else
+                 exchange_probobility_final=1;
+             printf("#3My rank=%d   exchange_probobility =(g[current_energy] =  %f   * exchange_Ge_b=%f)  / exchange_Ge_a=%f * g[current_energy2]=%f = %f\n", rank,g[current_energy], exchange_Ge_b,exchange_Ge_a,g[current_energy2],exchange_probobility);//debug
+             exchange_rand=(double)rand()/RAND_MAX;
+
+             //2st check to exit
+             if(exchange_probobility_final<exchange_rand){  // fail
+                 exchange_status=0;
+                 MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // recive signal, 0 -> exit.
+                 printf("Fail,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
+                 return 0;
+             }
+             else{  //continue
+                 printf("Succses,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
+                 MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // send signal 1
+
+                 MPI_Send(spins, n, MPI_SIGNED_CHAR, b, 1010, MPI_COMM_WORLD);  // send spins_a
+
+                 for (unsigned i=0;i<n;i++){
+                     spins[i]=exchange_spins[i];    // change spins_b -> spins_a
+                 }
+                 e = exchange_energy;
+
+                 g[current_energy2]     += f;
+                 visit[current_energy2] += 1;
+                 hist[current_energy2]  += 1;
+
+
+
+             }
+
+
+
          }
-
-
-         MPI_Recv(exchange_buffer, 10000, MPI_PACKED, a, 10000, MPI_COMM_WORLD, &status);
-         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
-         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_b, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
-         MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
-         MPI_Unpack(exchange_buffer, 10000, &position, spins, n,  MPI_SIGNED_CHAR, MPI_COMM_WORLD);
-         printf("#2Rmy rank=%d   exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,exchange_energy, exchange_Ge_b,exchange_Ge_a);//debug
-
 
      }
 
      if (rank == b)
      {
          current_energy = (int)((e-emin)*PRECISION);
-         MPI_Recv(exchange_buffer, 100, MPI_PACKED, a, 100, MPI_COMM_WORLD, &status);
+         MPI_Recv(exchange_buffer, 100, MPI_PACKED, a, 100, MPI_COMM_WORLD, &status); // получаем e_a, g_a(e_a)
          MPI_Unpack(exchange_buffer, 100, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
          MPI_Unpack(exchange_buffer, 100, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
 
          printf("#1Rmy rank=%d   My e_b=%f g_b[e_b]=%f, and I recive e_a=%f    g_a[e_a]=%f\n", rank,e,g[current_energy],exchange_energy,exchange_Ge_a);//debug
 
         //1st check
-         if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank){
+         if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank){ // если не попала в интервал энергии текущего процесса, то выйти из ф-ции
              exchange_status=0;
-             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);    // рассылка сигнала exchange_status =0 выхода из фунуции.
              return 0;
          }
 
          else{
-             //exchange_status=1;
-             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
+             MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);    // рассылка exchange_status=1 все ок, продолжаем
 
-             current_energy2 = (int)((exchange_energy-emin)*PRECISION);
+             current_energy2 = (int)((exchange_energy-emin)*PRECISION); // g_b(e_a)
 
              printf("#2Smy rank=%d I send my exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,e, g[current_energy],g[current_energy2]);//debug
              MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
              MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
              MPI_Pack(&g[current_energy2], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
              MPI_Pack(spins, n,  MPI_SIGNED_CHAR, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
-             MPI_Send(exchange_buffer, position, MPI_PACKED, a, 10000, MPI_COMM_WORLD);
+             MPI_Send(exchange_buffer, position, MPI_PACKED, a, 10000, MPI_COMM_WORLD); // отсылаем e_b, g_b(e_b), g_b(e_a), и массив spins
+
+             //2nd check
+             MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // recive signal,
+             if(exchange_status==0)
+                 return 0;  // break
+             else{
+                 // continue
+                 MPI_Recv(spins, n, MPI_SIGNED_CHAR, a, 1010, MPI_COMM_WORLD, &status);   // recive and change spins_a -> spins_b
+
+                 e = exchange_energy;   // change energy
+
+                 g[current_energy2]     += f;
+                 visit[current_energy2] += 1;
+                 hist[current_energy2]  += 1;
+
+             }
 
 
          }
@@ -544,8 +595,14 @@ bool exchange(unsigned a, unsigned b){
          MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);
          if(exchange_status==0)
              return 0;
+         //2nd check
+         MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // recive signal,
+         if(exchange_status==0)
+             return 0;
 
      }
+
+
 
     return true;
 }
