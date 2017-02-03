@@ -477,6 +477,8 @@ bool exchange(unsigned a, unsigned b){
     double exchange_probobility;
     double exchange_probobility_final;
     double exchange_rand;
+    double exchange_emin;
+    double exchange_emax;
 
     if (rank == a)
      {
@@ -485,6 +487,8 @@ bool exchange(unsigned a, unsigned b){
 
          MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
+         MPI_Pack(&emin_for_current_rank, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
+         MPI_Pack(&emax_for_current_rank, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Send(exchange_buffer, position, MPI_PACKED, b, 100, MPI_COMM_WORLD);   // упаковкаи отсылка e_a и g_a(e_a)
 
          //1st check to exit
@@ -513,7 +517,7 @@ bool exchange(unsigned a, unsigned b){
              if(exchange_probobility_final<exchange_rand){  // fail
                  exchange_status=0;
                  MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // recive signal, 0 -> exit.
-                 printf("Fail,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
+                 printf("2nd Cancel,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
                  return 0;
              }
              else{  //continue
@@ -547,13 +551,18 @@ bool exchange(unsigned a, unsigned b){
          MPI_Recv(exchange_buffer, 100, MPI_PACKED, a, 100, MPI_COMM_WORLD, &status); // получаем e_a, g_a(e_a)
          MPI_Unpack(exchange_buffer, 100, &position, &exchange_energy, 1, MPI_DOUBLE, MPI_COMM_WORLD);
          MPI_Unpack(exchange_buffer, 100, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+         MPI_Unpack(exchange_buffer, 100, &position, &exchange_emin, 1, MPI_DOUBLE, MPI_COMM_WORLD);
+         MPI_Unpack(exchange_buffer, 100, &position, &exchange_emax, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
+
+
 
          printf("#1Rmy rank=%d   My e_b=%f g_b[e_b]=%f, and I recive e_a=%f    g_a[e_a]=%f\n", rank,e,g[current_energy],exchange_energy,exchange_Ge_a);//debug
 
-        //1st check
-         if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank){ // если не попала в интервал энергии текущего процесса, то выйти из ф-ции
+         //1st проверка на поподание энергий в окно
+         if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank||e<exchange_emin||e>exchange_emax){ // если не попала в интервал энергии текущего процесса, то выйти из ф-ции
              exchange_status=0;
              MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);    // рассылка сигнала exchange_status =0 выхода из фунуции.
+             printf("\n1st Cancel\n");
              return 0;
          }
 
