@@ -40,7 +40,6 @@ double f;                       // Модификационный фактор (
 double factor = 0.8;            // Критерий плоскости гистограммы H
 unsigned nfinal = 24;           // число WL-циклов
 
-
 int PRECISION; //!!!теперь задается пользователем при запуске программы
                                 // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
                                 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
@@ -142,6 +141,8 @@ int main(void)
     }
     
     srand(seed);
+
+    fflush(stdout);
 
     mc();
     normalize();
@@ -300,10 +301,12 @@ void mc(){
         totalstep += step;
 
         printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
+        fflush(stdout);
 
         f = f/2;
     }
     printf("# final   MCS=%9d\n",totalstep);
+    fflush(stdout);
 
 }
 
