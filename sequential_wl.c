@@ -41,7 +41,8 @@ double factor = 0.8;            // Критерий плоскости гист�
 unsigned nfinal = 24;           // число WL-циклов
 
 
-#define PRECISION 1e2           // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+int PRECISION; //!!!теперь задается пользователем при запуске программы
+                                // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
                                 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 //#define DEBUG true             // Режим дебага для отлавливания утечек памяти
@@ -59,7 +60,6 @@ void normalize();
 
 int main(void)
 {
-    unsigned i;
     unsigned long seed=0;       // Random seed
     printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
     if (scanf("%lu",&seed) == 1){}
@@ -67,6 +67,17 @@ int main(void)
         printf("# Error! Failed to read integer seed!\n");
         return 0;
     }
+
+    int prec=0;       // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+    printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
+    if (scanf("%u",&prec) == 1){}
+    else{
+        printf("# Error! Failed to read integer precision!\n");
+        return 0;
+    }
+    PRECISION = pow(10,prec);   // !!Задание точности
+    printf("# Precision = %d",PRECISION);
+
 
 
     char filename[100];
