@@ -35,7 +35,7 @@ double *intervals;              //массив интервалов
 double *intervalsE;             //массив интервалов значений
 int intervalsNum=0;             //число значений интервалов из файла
 double emin_for_current_rank, emax_for_current_rank; //минимумы и максимумы энергии для конкретного процесса
-int rank, size;
+unsigned int rank, size;
 
 // для функции exchanage
 char exchange_buffer[10000];    //буфер обмена !! Должен быть больше количества спинов в системе!!
@@ -249,7 +249,7 @@ void mc(double eFrom, double eTo)
 {
   unsigned ie,tt;
   int check,flag;
-  int step, totalstep;
+  long long step, totalstep; step, totalstep;
   int count;
   double sum;
 
