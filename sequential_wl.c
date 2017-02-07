@@ -166,6 +166,23 @@ void rotate(int spin)
     e += dE;
 }
 
+/// Полный пересчет суммарной энергии системы, для актуализации
+void recalcE(){
+    unsigned i,j,is,js;
+    e=0;
+    for (i=0; i<n; ++i){
+        for (j=sequencies[i]; j<sequencies[i]+a_neighbours[i]; ++j){
+            is=spins[i];
+            js=spins[neighbours[j]];
+            if (is!=js)
+                e-=energies[j];
+            else
+                e+=energies[j];
+        }
+    }
+    e/=2.;
+}
+
 
 /// Очистка памяти
 void complete()
@@ -224,6 +241,10 @@ void mc(){
             single();
 
             step++;
+
+            if (step%10000){              // каждые 10000 пересчитываем суммарную энергию
+                recalcE();
+            }
 
             if(step%1000==0){             // каждые 1000 шагов
 

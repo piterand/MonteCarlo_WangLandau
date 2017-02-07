@@ -177,6 +177,7 @@ int readCSV(char *filename){
 
     emax/=2;
     e/=2;
+    emax= ((double)ceil(emax * PRECISION)) / PRECISION; // округляем значение максимальной энергии до знака точности, в большую сторону
     emin = -emax;
 
     fclose(file);
