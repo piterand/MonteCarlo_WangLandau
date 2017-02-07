@@ -210,7 +210,7 @@ void mc(){
 */
     unsigned ie,tt; //итераторы
     int check,flag;
-    int step, totalstep;
+    long long step, totalstep;
     int count;
     double sum;
 
