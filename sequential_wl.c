@@ -323,6 +323,10 @@ void single(){
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
+        if(fabs(e)<1E-11){
+            e=0;
+            enKey = (int)((e-emin)*PRECISION);
+        }
 #ifdef DEBUG
         if (eoKey>=histSize || eoKey<0) printf("Error with memory working12");
         if (enKey>=histSize || enKey<0) printf("Error with memory working12");
