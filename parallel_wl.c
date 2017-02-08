@@ -32,7 +32,7 @@ unsigned histSize=0;            //число элементов в гистог�
 
 // для параллельного кода
 double *intervals;              //массив интервалов
-double *intervalsE;             //массив интервалов значений
+double *intervalsE;             //массив интервалов значений энергий
 int intervalsNum=0;             //число значений интервалов из файла
 double emin_for_current_rank, emax_for_current_rank; //минимумы и максимумы энергии для конкретного процесса
 unsigned int rank, size;
@@ -44,6 +44,7 @@ double exchange_Ge_a;           //обмениваемое значение G(э
 double exchange_Ge_b;           //обмениваемое значение G(энергии)
 signed char *exchange_spins;
 bool exchange_status;
+int tdist;                      // по скольку процессов на каждый интервал
 
 
 double *g;
@@ -55,7 +56,8 @@ double f;                       // Модификационный фактор (
 double factor = 0.8;            // Критерий плоскости гистограммы H
 unsigned nfinal = 24;           // число WL-циклов
 
-#define PRECISION 1e1           // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+int PRECISION; //!!!теперь задается пользователем при запуске программы
+                                // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
                                 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
 
 //#define DEBUG true            // Что бы отключить(включить) режим дебага нужно закомментировать (раскомментировать) эту строку.
@@ -64,10 +66,10 @@ int readCSVintervals(char *filename); //считывает интервалы и
 void rotate(int spin);          // Считает энергию системы
 void complete();
 
-void mc(double eFrom, double eTo);
-void single(double eFrom, double eTo);
-bool exchange(unsigned a, unsigned b);
-void normalize();
+void mc(double eFrom, double eTo);      // фнукция запуска WL Монте-Карло в заданном интервале
+void single(double eFrom, double eTo);  // функция переворота спина и попытка принятия новой системы в заданном интервале
+bool exchange(unsigned a, unsigned b);  // функция обмена конфигурациями между потоками
+void normalize();                       // нормализация гистограммы в конце рассчета
 
 #include "common.c"
 
@@ -77,18 +79,32 @@ int main(int argc, char **argv)
 
     MPI_Comm_size(MPI_COMM_WORLD, &size); //получение числа процессов
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); //текущий id процесса
-    MPI_Status status;
 
     printf("#size = %d, rank = %d\n", size, rank);
 
-    int seed=0;                 // Random seed
+    unsigned long seed=0;       // Random seed
+    int prec=0;                 // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
     char filename[300];         // целевой файл с энергиями
     char filenameinterval[300]; // целевой файл с интервалами
 
     if(rank==0)
     {
-        printf("# Please, input random number seed:  ");
-        scanf("%u",&seed);
+        printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
+        if (scanf("%lu",&seed) == 1){}
+        else{
+            printf("# Error! Failed to read integer seed!\n");
+            return 0;
+        }
+
+        printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
+        if (scanf("%u",&prec) == 1){}
+        else{
+            printf("# Error! Failed to read integer precision!\n");
+            return 0;
+        }
+        PRECISION = pow(10,prec);   // !!Задание точности
+        printf("# Precision = %d\n",PRECISION);
+
 
         //printf("# Please, input target energy filename: ");
         //scanf("%s",filename);
@@ -96,13 +112,14 @@ int main(int argc, char **argv)
         //printf("# Please, input target intervals filename: ");
         //scanf("%s",filenameinterval);
 
+        // для отладки
         strcpy(filename,"/home/petr/scienceworks/Programs_with_Git/wanglandauparallel/csv_examples/square_ising_4x4.csv");
         strcpy(filenameinterval, "/home/petr/scienceworks/Programs_with_Git/wanglandauparallel/csv_examples/intervals.csv");
-
+        //
 
     }
-
-    MPI_Bcast(&seed,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем seed
+    MPI_Bcast(&seed,1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);                 // рассылаем seed
+    MPI_Bcast(&PRECISION,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем seed
     MPI_Bcast(filename,300, MPI_CHAR, 0, MPI_COMM_WORLD);           // рассылаем имя файла с энергиями
     MPI_Bcast(filenameinterval,300, MPI_CHAR, 0, MPI_COMM_WORLD);   // рассылаем имя файла с интервалами
 
@@ -121,23 +138,44 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    // тут нужно написать распределение интервалов по процессам, пока делаем вручную
-    //printf("\n!!!intervalsNum=%d\n",intervalsNum);
-
-    if(size>intervalsNum/2){
-        if(rank=0){
-            printf("\n!!!Error, please enater corresponding number of process equal number of intervals = %d",intervalsNum);
-        }
-        return 0;
-    }
-
     exchange_spins=(signed char *) malloc(n*sizeof(signed char));   //массив спинов для обмена
 
-    if(rank<intervalsNum/2){
-        emin_for_current_rank=intervalsE[2*rank];
-        emax_for_current_rank=intervalsE[2*rank+1];
-        printf("\n!!!my rank=%d, emin=%f    emax=%f\n",rank,emin_for_current_rank, emax_for_current_rank);
+    //////////////// распределение интервалов по процессам, пока делаем вручную
+    printf("\n!!!intervalsNum=%d\n",intervalsNum);
+
+    if((size<(intervalsNum/2)) || (size % (intervalsNum/2))!=0){
+
+            printf("\n!!!Error, please enter number of process larger then number of intervals >= %d",intervalsNum);
+
+        return 0;
     }
+    printf("hahaha");
+    //int tdrop = (int)size/(intervalsNum/2);
+    //printf("tdrop=%d",tdrop);
+
+
+//    if(rank>=intervalsNum/2){
+//        emin_for_current_rank=intervalsE[2*rank];
+//        emax_for_current_rank=intervalsE[2*rank+1];
+//        printf("\n!!!my rank=%d, emin=%f    emax=%f\n",rank,emin_for_current_rank, emax_for_current_rank);
+//    }
+
+
+
+//    if(rank==0){
+//        for(int i=0;i<intervalsNum;i++)
+//            printf("#!intervalsE[%d]=%f\n",i,intervalsE[i]);
+
+//    }
+
+    tdist=(int)size/(intervalsNum/2);   // по скольку процессов на каждый интервал
+    //printf("\n#!!!my rank=%d, intEmin=%d, intEmax=%d",rank,(int)((rank)/tdist)*2,(int)((rank)/tdist)*2+1);
+
+    emin_for_current_rank=intervalsE[(int)((rank)/tdist)*2];
+    emax_for_current_rank=intervalsE[(int)((rank)/tdist)*2+1];
+    //printf("\n#!!!my rank=%d, emin=%f    emax=%f\n",rank,emin_for_current_rank, emax_for_current_rank);
+
+    ////////////////
 
 #ifdef DEBUG
 
@@ -196,12 +234,17 @@ int main(int argc, char **argv)
     }
 
     srand(seed);
-    mc(emin,emax);
-    normalize();
-    exchange(0,1);
-    MPI_Barrier(MPI_COMM_WORLD);
 
-    // вывод
+    //fflush(stdout);
+    printf("Iamstack");
+    mc(emin,emax);
+    printf("\nI Am Here");
+    //MPI_Barrier(MPI_COMM_WORLD);
+
+    normalize();
+    //exchange(0,1); Debug
+
+     //вывод
 //    printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
 //    for(ie=0; ie<histSize; ie++){
 //      if (nonzero[ie] == 1) {
@@ -223,6 +266,23 @@ void rotate(int spin){
         dE += energies[i]*spins[neighbours[i]]*spins[spin]*2;
     }
     e += dE;
+}
+
+/// Полный пересчет суммарной энергии системы, для актуализации
+void recalcE(){
+    unsigned i,j,is,js;
+    e=0;
+    for (i=0; i<n; ++i){
+        for (j=sequencies[i]; j<sequencies[i]+a_neighbours[i]; ++j){
+            is=spins[i];
+            js=spins[neighbours[j]];
+            if (is!=js)
+                e-=energies[j];
+            else
+                e+=energies[j];
+        }
+    }
+    e/=2.;
 }
 
 // clean arrays
@@ -249,9 +309,11 @@ void mc(double eFrom, double eTo)
 {
   unsigned ie,tt;
   int check,flag;
-  long long step, totalstep; step, totalstep;
+  long long step, totalstep;
   int count;
   double sum;
+  int iterator_for_exchange,rand_for_exchange,rand_for_exchange2;
+
 
 /*   initialization  */
   totalstep=0;
@@ -276,6 +338,35 @@ void mc(double eFrom, double eTo)
 
 
       step++;
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      if (step%10000){              // каждые 10000 пересчитываем суммарную энергию
+          recalcE();
+          if(tdist==1){
+              for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2)-1;++iterator_for_exchange){
+                  //printf("\n\n My rank = %d, Exchange(%d,%d)",rank,iterator_for_exchange,iterator_for_exchange+1);
+                  exchange(iterator_for_exchange,iterator_for_exchange+1);
+                  MPI_Barrier(MPI_COMM_WORLD);
+              }
+          }
+          else{
+              for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2);++iterator_for_exchange){
+                  if(rank==0)
+                  {
+                        rand_for_exchange=rand()%tdist;
+                        rand_for_exchange2=rand()%tdist;
+                  }
+                  MPI_Bcast(&rand_for_exchange,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем номера обмен. ранков
+                  MPI_Bcast(&rand_for_exchange2,1, MPI_INT, 0, MPI_COMM_WORLD);
+                  printf("\n\n My rank = %d, Exchange(%d,%d)",rank,tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
+                  MPI_Barrier(MPI_COMM_WORLD);
+
+                  exchange(tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
+                  MPI_Barrier(MPI_COMM_WORLD);
+              }
+          }
+      }
 
       if(step%1000==0){
 
@@ -311,10 +402,14 @@ void mc(double eFrom, double eTo)
     totalstep += step;
 
     printf("# n=%2d    MCS=%9d\n",tt,totalstep);
+    fflush(stdout);
 
     f = f/2;
   }
+   printf("\nMy rank = %d, I Am Here\n",rank);
   printf("# final   MCS=%9d\n",totalstep);
+  fflush(stdout);
+
 
 }
 
@@ -336,20 +431,26 @@ void single(double eFrom, double eTo){
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
 
+        if(fabs(e)<1E-11){
+            e=0;
+            enKey = (int)((e-emin)*PRECISION);
+        }
+
 
         ga = g[eoKey];          // g[старой энергии]
         gb = g[enKey];          // g[новой энергии]
-
-        if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
-            spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
-            e = energyOld;          // обратно записываем старую энергию
-            enKey = eoKey;          // берем старый столбик гистограммы
-        }
 
         if(e < eFrom || e > eTo){      // условия переворота, если не принимаем, то заходим внутрь цикла
             spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
             e = energyOld;          // обратно записываем старую энергию
             enKey = eoKey;          // берем старый столбик гистограммы
+        }
+        else{
+            if(exp(ga-gb) <= (double)rand()/RAND_MAX){      // условия переворота, если не принимаем, то заходим внутрь цикла
+                spins[la] *= -1;        // не принимаем новую конфигурацию, обратно переворачиваем спин
+                e = energyOld;          // обратно записываем старую энергию
+                enKey = eoKey;          // берем старый столбик гистограммы
+            }
         }
 
         g[enKey]     += f;          // прибавляем f в текущий столбик гистограммы (так как тут хрянятся логарифмы)
@@ -483,7 +584,7 @@ bool exchange(unsigned a, unsigned b){
     if (rank == a)
      {
          current_energy = (int)((e-emin)*PRECISION);
-         printf("#1Smy rank=%d   I send my e_a=%f    g_a[e_a]=%f\n", rank,e, g[current_energy]);//debug
+         //printf("#1Smy rank=%d   I send my e_a=%f    g_a[e_a]=%f\n", rank,e, g[current_energy]);//debug
 
          MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
          MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 100, &position, MPI_COMM_WORLD);
@@ -502,7 +603,7 @@ bool exchange(unsigned a, unsigned b){
              MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_b, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
              MPI_Unpack(exchange_buffer, 10000, &position, &exchange_Ge_a, 1,  MPI_DOUBLE, MPI_COMM_WORLD);
              MPI_Unpack(exchange_buffer, 10000, &position, exchange_spins, n,  MPI_SIGNED_CHAR, MPI_COMM_WORLD);
-             printf("#2Rmy rank=%d   exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,exchange_energy, exchange_Ge_b,exchange_Ge_a);//debug
+             //printf("#2Rmy rank=%d   exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,exchange_energy, exchange_Ge_b,exchange_Ge_a);//debug
 
              current_energy2=(int)((exchange_energy-emin)*PRECISION);
              exchange_probobility =(g[current_energy]*exchange_Ge_b)/(exchange_Ge_a*g[current_energy2]);
@@ -510,18 +611,18 @@ bool exchange(unsigned a, unsigned b){
                  exchange_probobility_final=exchange_probobility;
              else
                  exchange_probobility_final=1;
-             printf("#3My rank=%d   exchange_probobility =(g[current_energy] =  %f   * exchange_Ge_b=%f)  / exchange_Ge_a=%f * g[current_energy2]=%f = %f\n", rank,g[current_energy], exchange_Ge_b,exchange_Ge_a,g[current_energy2],exchange_probobility);//debug
+             //printf("#3My rank=%d   exchange_probobility =(g[current_energy] =  %f   * exchange_Ge_b=%f)  / exchange_Ge_a=%f * g[current_energy2]=%f = %f\n", rank,g[current_energy], exchange_Ge_b,exchange_Ge_a,g[current_energy2],exchange_probobility);//debug
              exchange_rand=(double)rand()/RAND_MAX;
 
              //2st check to exit
              if(exchange_probobility_final<exchange_rand){  // fail
                  exchange_status=0;
                  MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // recive signal, 0 -> exit.
-                 printf("2nd Cancel,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
+                 //printf("2nd Cancel,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
                  return 0;
              }
              else{  //continue
-                 printf("Succses,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
+                 //printf("Succses,exchange_probobility_final = %f    exchange_rand = %f",exchange_probobility_final,exchange_rand);//debug
                  MPI_Bcast(&exchange_status,1, MPI_BYTE, a, MPI_COMM_WORLD);    // send signal 1
 
                  MPI_Send(spins, n, MPI_SIGNED_CHAR, b, 1010, MPI_COMM_WORLD);  // send spins_a
@@ -556,13 +657,13 @@ bool exchange(unsigned a, unsigned b){
 
 
 
-         printf("#1Rmy rank=%d   My e_b=%f g_b[e_b]=%f, and I recive e_a=%f    g_a[e_a]=%f\n", rank,e,g[current_energy],exchange_energy,exchange_Ge_a);//debug
+         //printf("#1Rmy rank=%d   My e_b=%f g_b[e_b]=%f, and I recive e_a=%f    g_a[e_a]=%f\n", rank,e,g[current_energy],exchange_energy,exchange_Ge_a);//debug
 
          //1st проверка на поподание энергий в окно
          if(exchange_energy>emax_for_current_rank||exchange_energy<emin_for_current_rank||e<exchange_emin||e>exchange_emax){ // если не попала в интервал энергии текущего процесса, то выйти из ф-ции
              exchange_status=0;
              MPI_Bcast(&exchange_status,1, MPI_BYTE, b, MPI_COMM_WORLD);    // рассылка сигнала exchange_status =0 выхода из фунуции.
-             printf("\n1st Cancel\n");
+             //printf("\n1st Cancel\n");
              return 0;
          }
 
@@ -571,7 +672,7 @@ bool exchange(unsigned a, unsigned b){
 
              current_energy2 = (int)((exchange_energy-emin)*PRECISION); // g_b(e_a)
 
-             printf("#2Smy rank=%d I send my exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,e, g[current_energy],g[current_energy2]);//debug
+             //printf("#2Smy rank=%d I send my exch_E=%f   g_b[e_b]=%f g_b[e_a]=%f\n", rank,e, g[current_energy],g[current_energy2]);//debug
              MPI_Pack(&e, 1,MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
              MPI_Pack(&g[current_energy], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);
              MPI_Pack(&g[current_energy2], 1,  MPI_DOUBLE, exchange_buffer, 10000, &position, MPI_COMM_WORLD);

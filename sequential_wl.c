@@ -51,9 +51,11 @@ void complete();
 
 #include "common.c"             //подключить файл с общими функциями для параллельного и последовательного варианта WL
 
-void mc();
-void single();
-void normalize();
+void mc();                      // фнукция запуска WL Монте-Карло
+void single();                  // функция переворота спина и попытка принятия новой системы
+void normalize();               // нормализация гистограммы в конце рассчета
+void recalcE();                 // пересчет энергии для удаления ошибок при машинном сложении
+
 
 
 
@@ -229,9 +231,6 @@ void mc(){
     f=1;
 
     for(ie=0; ie<histSize; ie++){       //обнуляем массив nonzero
-#ifdef DEBUG
-        if (ie>=histSize || ie<0) printf("Error with memory working12");
-#endif
         nonzero[ie]=0;
     }
 
@@ -242,9 +241,6 @@ void mc(){
         step=0;
 
         for(ie=0; ie<histSize; ie++){
-#ifdef DEBUG
-            if (ie>=histSize || ie<0) printf("Error with memory working5");
-#endif
             visit[ie]=0;                  // обнуляем массив visit
         }
 
@@ -261,18 +257,12 @@ void mc(){
             if(step%1000==0){             // каждые 1000 шагов
 
                 for(ie=0; ie<histSize; ie++){
-#ifdef DEBUG
-                    if (ie>=histSize || ie<0) printf("Error with memory working5");
-#endif
                     if(visit[ie] > 0) {nonzero[ie]=1;}        // проверяем, появились ли новые энергии
                 }
 
                 count=0;
                 sum=0;
                 for(ie=0; ie<histSize; ie++){
-#ifdef DEBUG
-                    if (ie>=histSize || ie<0) printf("Error with memory working5");
-#endif
                     if(nonzero[ie]==1) {
                         count++;                        // подсчитываем количество встреченных энергий
                         sum+=visit[ie];                 // сумма посещений всех энергий
@@ -281,9 +271,6 @@ void mc(){
 
                 check=1;
                 for(ie=0; ie<histSize; ie++){           // проверка на плоскоту
-#ifdef DEBUG
-                    if (ie>=histSize || ie<0) printf("Error with memory working5");
-#endif
                     if(nonzero[ie]==1) {
                         if(visit[ie] < factor*(sum/count)){check=0;}    // sum/count = среднее значение количества посещений энергий
                     }                                                   // если количество посещений хоть одной энергии меньше среднего значения * factor, то проверка провалилась
