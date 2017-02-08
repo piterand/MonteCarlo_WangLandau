@@ -36,6 +36,9 @@ double *intervalsE;             //массив интервалов значен
 int intervalsNum=0;             //число значений интервалов из файла
 double emin_for_current_rank, emax_for_current_rank; //минимумы и максимумы энергии для конкретного процесса
 unsigned int rank, size;
+int wl_step_count;              //текущий WL шаг
+int wl_check_end;               //текущий WL шаг
+
 
 // для функции exchanage
 char exchange_buffer[10000];    //буфер обмена !! Должен быть больше количества спинов в системе!!
@@ -149,7 +152,7 @@ int main(int argc, char **argv)
 
         return 0;
     }
-    printf("hahaha");
+
     //int tdrop = (int)size/(intervalsNum/2);
     //printf("tdrop=%d",tdrop);
 
@@ -236,9 +239,7 @@ int main(int argc, char **argv)
     srand(seed);
 
     //fflush(stdout);
-    printf("Iamstack");
     mc(emin,emax);
-    printf("\nI Am Here");
     //MPI_Barrier(MPI_COMM_WORLD);
 
     normalize();
@@ -308,7 +309,7 @@ void complete(){
 void mc(double eFrom, double eTo)
 {
   unsigned ie,tt;
-  int check,flag;
+  int check,flag1,flag2,reduce_flag;
   long long step, totalstep;
   int count;
   double sum;
@@ -322,17 +323,18 @@ void mc(double eFrom, double eTo)
   for(ie=0; ie<histSize; ie++){
     nonzero[ie]=0;
   }
+  flag2=false;
+  tt=0;
+  do{
 
-  for( tt = 0; tt <= nfinal; tt++){
-
-    flag=0;
+    flag1=0;
     step=0;
 
     for(ie=0; ie<histSize; ie++){
       visit[ie]=0;
     }
 
-    while(flag == 0){
+    while(flag1 == 0){
 
       single(eFrom,eTo);
 
@@ -341,31 +343,38 @@ void mc(double eFrom, double eTo)
 
       MPI_Barrier(MPI_COMM_WORLD);
 
-      if (step%10000){              // каждые 10000 пересчитываем суммарную энергию
+      if (step%10000==0){              // каждые 10000 пересчитываем суммарную энергию
           recalcE();
-          if(tdist==1){
-              for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2)-1;++iterator_for_exchange){
-                  //printf("\n\n My rank = %d, Exchange(%d,%d)",rank,iterator_for_exchange,iterator_for_exchange+1);
-                  exchange(iterator_for_exchange,iterator_for_exchange+1);
-                  MPI_Barrier(MPI_COMM_WORLD);
-              }
-          }
-          else{
-              for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2);++iterator_for_exchange){
-                  if(rank==0)
-                  {
-                        rand_for_exchange=rand()%tdist;
-                        rand_for_exchange2=rand()%tdist;
+          if(flag2==false)
+          {
+              if(tdist==1){
+                  for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2)-1;++iterator_for_exchange){
+                      //printf("\n\n My rank = %d, Exchange(%d,%d)",rank,iterator_for_exchange,iterator_for_exchange+1);
+                      exchange(iterator_for_exchange,iterator_for_exchange+1);
+                      MPI_Barrier(MPI_COMM_WORLD);
                   }
-                  MPI_Bcast(&rand_for_exchange,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем номера обмен. ранков
-                  MPI_Bcast(&rand_for_exchange2,1, MPI_INT, 0, MPI_COMM_WORLD);
-                  printf("\n\n My rank = %d, Exchange(%d,%d)",rank,tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
-                  MPI_Barrier(MPI_COMM_WORLD);
-
-                  exchange(tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
-                  MPI_Barrier(MPI_COMM_WORLD);
               }
+              else{
+                  for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2);++iterator_for_exchange){
+                      if(rank==0)
+                      {
+                          rand_for_exchange=rand()%tdist;
+                          rand_for_exchange2=rand()%tdist;
+                      }
+                      MPI_Bcast(&rand_for_exchange,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем номера обмен. ранков
+                      MPI_Bcast(&rand_for_exchange2,1, MPI_INT, 0, MPI_COMM_WORLD);
+                      printf("\n\n My rank = %d, Exchange(%d,%d)",rank,tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
+                      MPI_Barrier(MPI_COMM_WORLD);
+
+                      exchange(tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
+                      MPI_Barrier(MPI_COMM_WORLD);
+                  }
+              }
+              MPI_Allreduce(&tt,&reduce_flag,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
+              if(reduce_flag>=nfinal)
+                  flag2=true;
           }
+
       }
 
       if(step%1000==0){
@@ -393,7 +402,7 @@ void mc(double eFrom, double eTo)
         if (false && step%100000) //написать true для дебаг-вывода в файл каждые 100000 шагов
             dumpArrays();
 
-        if(check==1){flag++;}
+        if(check==1){flag1++;}
       }
     }
 
@@ -401,11 +410,14 @@ void mc(double eFrom, double eTo)
 
     totalstep += step;
 
+
+
     printf("# n=%2d    MCS=%9d\n",tt,totalstep);
     fflush(stdout);
 
     f = f/2;
-  }
+    tt++;
+  } while(flag1*flag2==false);
    printf("\nMy rank = %d, I Am Here\n",rank);
   printf("# final   MCS=%9d\n",totalstep);
   fflush(stdout);
