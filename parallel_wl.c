@@ -356,7 +356,7 @@ void mc(double eFrom, double eTo)
                   }
               }
               else{
-                  for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2);++iterator_for_exchange){
+                  for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2-1);++iterator_for_exchange){
                       if(rank==0)
                       {
                           rand_for_exchange=rand()%tdist;
@@ -364,9 +364,7 @@ void mc(double eFrom, double eTo)
                       }
                       MPI_Bcast(&rand_for_exchange,1, MPI_INT, 0, MPI_COMM_WORLD);                 // рассылаем номера обмен. ранков
                       MPI_Bcast(&rand_for_exchange2,1, MPI_INT, 0, MPI_COMM_WORLD);
-                      printf("\n\n My rank = %d, Exchange(%d,%d)",rank,tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
-                      MPI_Barrier(MPI_COMM_WORLD);
-
+                      //printf("\n\n My rank = %d, Exchange(%d,%d)",rank,tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
                       exchange(tdist*iterator_for_exchange+rand_for_exchange,tdist*(iterator_for_exchange+1)+rand_for_exchange2);
                       MPI_Barrier(MPI_COMM_WORLD);
                   }
