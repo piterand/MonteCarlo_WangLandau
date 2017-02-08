@@ -341,12 +341,13 @@ void mc(double eFrom, double eTo)
 
       step++;
 
-      MPI_Barrier(MPI_COMM_WORLD);
 
-      if (step%10000==0){              // каждые 10000 пересчитываем суммарную энергию
+
+      if (step%1000==0){              // каждые 10000 пересчитываем суммарную энергию
           recalcE();
           if(flag2==false)
           {
+              MPI_Barrier(MPI_COMM_WORLD);
               if(tdist==1){
                   for(iterator_for_exchange=0;iterator_for_exchange<(intervalsNum/2)-1;++iterator_for_exchange){
                       //printf("\n\n My rank = %d, Exchange(%d,%d)",rank,iterator_for_exchange,iterator_for_exchange+1);
@@ -370,12 +371,16 @@ void mc(double eFrom, double eTo)
                       MPI_Barrier(MPI_COMM_WORLD);
                   }
               }
+
               MPI_Allreduce(&tt,&reduce_flag,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
               if(reduce_flag>=nfinal)
                   flag2=true;
           }
 
       }
+      //MPI_Barrier(MPI_COMM_WORLD);
+
+
 
       if(step%1000==0){
 
@@ -412,7 +417,7 @@ void mc(double eFrom, double eTo)
 
 
 
-    printf("# n=%2d    MCS=%9d\n",tt,totalstep);
+    printf("# My rank = %d, n=%2d    MCS=%9d\n",rank,tt,totalstep);
     fflush(stdout);
 
     f = f/2;
