@@ -77,7 +77,7 @@ int readCSV(char *filename){
         return 0;
 
     int fpos = 1, lastFpos=0;
-    int count_n=0;
+    unsigned count_n=0;
 
     for(c=fgetc(file);c=='\n'||c=='\r'||c=='#';c=fgetc(file)){ //пропуск комментариев
         fgets(symb,100000,file);
