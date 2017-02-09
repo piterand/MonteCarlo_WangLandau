@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define nlamax (16*8*8*8*8*8) // !не знаю какой нужно задать размер?
+#define nlamax (16*8*8*8*8*8*8) // !не знаю какой нужно задать размер?
 
 double    iener[4*nlamax+1];
 double g[4*nlamax+1];
@@ -15,12 +15,10 @@ int main(void){
 
     int ie;
     double gmax;
-    double sum,a;
 
     int count;
     double a0,ae,ae2,aecp,cv,as,as2;  //edited
     double weight;
-    double fdummy;
 
     char cdummy[10000];
     FILE *fpw;
@@ -37,16 +35,12 @@ int main(void){
         return 0;
     }
 
-
+    
     printf("# Enter min and max temperature \n");
     if(scanf("%lf %lf",&tmin,&tmax)==2){}
     else{printf("Error! Failed to read min and max temperature!"); return 0;}
-
-
-
-
-
-
+    
+    
     printf("# Enter number of spins  \n");
     if(scanf("%d",&nla)==1){}
     else{printf("Error! Failed to read number of spins!"); return 0;}
@@ -98,7 +92,6 @@ int main(void){
         ae=0;
         ae2=0;
         aecp=0; //edited
-
         as2=0;  //edited
 
         for(ie=0; ie<count; ie++){
@@ -106,7 +99,6 @@ int main(void){
             a0  += weight;
             ae  += weight*iener[ie];
             ae2 += weight*iener[ie]*iener[ie];
-
         }
 
         aecp=ae;  //edited
@@ -114,11 +106,9 @@ int main(void){
         ae  /= (double)nla;
         ae2 /= (double)nla*(double)nla;
 
-
         ae  /= a0;
         ae2 /= a0;
         aecp /= a0;  //edited
-
 
         as2 = (log(a0) + gmax - beta*iener[0] + aecp*beta)/(double)nla; //edited
 
