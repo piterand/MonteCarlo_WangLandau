@@ -234,7 +234,7 @@ int main(int argc, char **argv)
     srand(seed);
 
     //fflush(stdout);
-    mc(emin,emax);
+    mc(emin_for_current_rank,emax_for_current_rank);
     MPI_Barrier(MPI_COMM_WORLD);
 
     normalize();
@@ -256,12 +256,13 @@ int main(int argc, char **argv)
 }
 
 void rotate(int spin){
-    double dE=0;
+    unsigned i;
+    long long dE=round(e*10000000);
     spins[spin] *= -1;
-    for(unsigned i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
-        dE += energies[i]*spins[neighbours[i]]*spins[spin]*2;
+    for(i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
+        dE += round(energies[i]*spins[neighbours[i]]*spins[spin]*2*10000000);
     }
-    e += dE;
+    e = dE/10000000.;
 }
 
 /// Полный пересчет суммарной энергии системы, для актуализации

@@ -167,7 +167,7 @@ int main(void)
 void rotate(int spin)
 {
     unsigned i;
-    double dE=0;
+    long long dE=round(e*10000000);
     spins[spin] *= -1;
     for(i = sequencies[spin]; i<sequencies[spin]+a_neighbours[spin]; ++i){
 #ifdef DEBUG
@@ -175,9 +175,9 @@ void rotate(int spin)
         if (i>=eCount || i<0) printf("Error with memory working11");
         if (neighbours[i]>=eCount || neighbours[i]<0) printf("Error with memory working111");
 #endif
-        dE += energies[i]*spins[neighbours[i]]*spins[spin]*2;
+        dE += round(energies[i]*spins[neighbours[i]]*spins[spin]*2*10000000);
     }
-    e += dE;
+    e = dE/10000000.;
 }
 
 /// Полный пересчет суммарной энергии системы, для актуализации
@@ -250,9 +250,9 @@ void mc(){
 
             step++;
 
-            if (step%10000==0){              // каждые 10000 пересчитываем суммарную энергию
-                recalcE();
-            }
+//            if (step%10000==0){              // каждые 10000 пересчитываем суммарную энергию
+//                recalcE();
+//            }
 
             if(step%1000==0){             // каждые 1000 шагов
 
@@ -287,12 +287,12 @@ void mc(){
 
         totalstep += step;
 
-        printf("# n=%2d    MCS=%9d\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
+        printf("# n=%2d    MCS=%9lld\n",tt,totalstep);    // ! на самом деле тут totalstep*n MCS, так как в функции single цикл по n
         fflush(stdout);
 
         f = f/2;
     }
-    printf("# final   MCS=%9d\n",totalstep);
+    printf("# final   MCS=%9lld\n",totalstep);
     fflush(stdout);
 
 }
@@ -322,6 +322,7 @@ void single(){
         if (enKey>=histSize || enKey<0) printf("Error with memory working12");
         if (la>=n || la<0) printf("Error with memory working12");
 #endif
+
 
         ga = g[eoKey];              // g[старой энергии]
         gb = g[enKey];              // g[новой энергии]

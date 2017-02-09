@@ -132,6 +132,7 @@ int readCSV(char *filename){
     int energyNum=0;            //holds actual count of previously parsed energies
     e = 0;
     emax = 0;                   // сумма всех взаимодействий с положительным знаком
+    long long eTemp=0;
 
     do {
         c = fgetc(file);
@@ -144,7 +145,7 @@ int readCSV(char *filename){
                 if (energyNum>=eCount || energyNum<0) printf("Error with memory working8");
 #endif
                 energies[energyNum] = parsedNumber;
-                e += parsedNumber;
+                eTemp+=round(parsedNumber*10000000);
                 emax += fabs(parsedNumber);
 
                 numInSymb=0;
@@ -176,7 +177,7 @@ int readCSV(char *filename){
     } while (c != EOF);
 
     emax/=2;
-    e/=2;
+    e=eTemp/20000000.;
     emax= ((double)ceil(emax * PRECISION)) / PRECISION; // округляем значение максимальной энергии до знака точности, в большую сторону
     emin = -emax;
 
