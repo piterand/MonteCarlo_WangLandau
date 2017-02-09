@@ -17,7 +17,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
-#include <mpi.h>
+#include <mpi/mpi.h>
 
 
 unsigned n;                     //количество спинов
@@ -85,8 +85,6 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &size); //получение числа процессов
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); //текущий id процесса
 
-    printf("#size = %d, rank = %d\n", size, rank);
-
     unsigned long seed=0;       // Random seed
     int prec=0;                 // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
     char filename[300];         // целевой файл с энергиями
@@ -95,7 +93,7 @@ int main(int argc, char **argv)
     if(rank==0)
     {
         printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
-        seed=1000;
+        fflush(stdout);
         if (scanf("%lu",&seed) == 1){}
         else{
             printf("# Error! Failed to read integer seed!\n");
@@ -103,20 +101,22 @@ int main(int argc, char **argv)
         }
 
         printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
+        fflush(stdout);
         if (scanf("%u",&prec) == 1){}
         else{
             printf("# Error! Failed to read integer precision!\n");
             return 0;
         }
-        prec = 0;
         PRECISION = pow(10,prec);   // !!Задание точности
         printf("# Precision = %d\n",PRECISION);
 
 
         printf("# Please, input target energy filename: ");
+        fflush(stdout);
         scanf("%s",filename);
 
         printf("# Please, input target intervals filename: ");
+        fflush(stdout);
         scanf("%s",filenameinterval);
 
     }
@@ -126,8 +126,6 @@ int main(int argc, char **argv)
     MPI_Bcast(filenameinterval,300, MPI_CHAR, 0, MPI_COMM_WORLD);   // рассылаем имя файла с интервалами
 
     seed += rank;
-
-    printf("#rank = %d, seed = %lu\n", rank,seed);
 
     if (!readCSV(filename)){
         printf("# Error!! File '%s' is unavaliable!\n",filename);
@@ -143,8 +141,6 @@ int main(int argc, char **argv)
     exchange_spins=(signed char *) malloc(n*sizeof(signed char));   //массив спинов для обмена
 
     //////////////// распределение интервалов по процессам, пока делаем вручную
-    printf("\n!!!intervalsNum=%d\n",intervalsNum);
-
     if((size<(int)(intervalsNum/2)) || (size % (intervalsNum/2))!=0){
 
             printf("\n!!!Error, please enter number of process larger then number of intervals >= %d",intervalsNum);
@@ -414,14 +410,13 @@ void mc(double eFrom, double eTo)
 
 
 
-    printf("# My rank = %d, n=%d    MCS=%lld\n",rank,tt,totalstep);
+    printf("# rank = %d, n=%d    MCS=%lld\n",rank,tt,totalstep);
     fflush(stdout);
 
     f = f/2;
     tt++;
   } while(flag1*flag2==false);
-  printf("\nMy rank = %d, I Am Here\n",rank);
-  printf("# final   MCS=%lld\n",totalstep);
+  printf("# rank = %d, final    MCS=%lld\n",rank,totalstep);
   fflush(stdout);
 
 
@@ -734,27 +729,31 @@ void showResult(){
 
 
     MPI_Barrier(MPI_COMM_WORLD);
-    // Вывод сделан именно в таком формате для совместимости с программой склейки гистограмм
-    printf("# intervals=%d\n",intervalsNum);
-    printf("# gaps=%d\n",histSize);
-    printf("# walkers=%d\n",size);
-    printf("# nfrom=");
-    for (unsigned i=0;i<intervalsNum;i+=2){
-        printf("%e,",intervals[i]);
-    }
-    printf("\n");
-    printf("# nto=");
-    for (unsigned i=1;i<intervalsNum;i+=2){
-        printf("%e,",intervals[i]);
-    }
-    printf("\n");
 
     if (rank==0){
-        double *g2, *hist2;
+        double *g2;
+        unsigned *hist2;
         int *nonzero2;
         g2 = (double *) malloc(histSize*sizeof(double));
-        hist2 = (double *) malloc(histSize*sizeof(double));
+        hist2 = (unsigned *) malloc(histSize*sizeof(unsigned));
         nonzero2 = (int *) malloc(histSize*sizeof(int));
+
+        // Вывод сделан именно в таком формате для совместимости с программой склейки гистограмм
+        printf("# intervals=%d\n",intervalsNum);
+        printf("# gaps=%d\n",histSize);
+        printf("# walkers=%d\n",size);
+        printf("# nfrom=");
+        for (unsigned i=0;i<intervalsNum;i+=2){
+            printf("%e,",intervals[i]);
+        }
+        printf("\n");
+        printf("# nto=");
+        for (unsigned i=1;i<intervalsNum;i+=2){
+            printf("%e,",intervals[i]);
+        }
+        printf("\n");
+
+
         for (int i=0; i < size; ++i){
             printf("-----\n");
             printf("%d\n",i);
@@ -766,22 +765,23 @@ void showResult(){
                     nonzero2[j]=nonzero[j];
                 }
             } else {
-                MPI_Recv(&g2,histSize,MPI_DOUBLE,i,0,MPI_COMM_WORLD,&status);
-                MPI_Recv(&hist2,histSize,MPI_DOUBLE,i,0,MPI_COMM_WORLD,&status);
-                MPI_Recv(&nonzero2,histSize,MPI_INT,i,0,MPI_COMM_WORLD,&status);
+                MPI_Recv(g2,histSize,MPI_DOUBLE,i,0,MPI_COMM_WORLD,&status);
+                MPI_Recv(hist2,histSize,MPI_UNSIGNED,i,0,MPI_COMM_WORLD,&status);
+                MPI_Recv(nonzero2,histSize,MPI_INT,i,0,MPI_COMM_WORLD,&status);
             }
 
             for (unsigned ie=0;ie<histSize;++ie){
                 if (nonzero2[ie] == 1)
-                    printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
+                    printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g2[ie],g2[ie]/n,hist2[ie]);
             }
         }
         free(g2);
         free(hist2);
         free(nonzero2);
     } else {
-        MPI_Send(&g,histSize,MPI_DOUBLE,0,0,MPI_COMM_WORLD);
-        MPI_Send(&hist,histSize,MPI_DOUBLE,0,0,MPI_COMM_WORLD);
+        MPI_Send(g,histSize,MPI_DOUBLE,0,0,MPI_COMM_WORLD);
+        MPI_Send(hist,histSize,MPI_UNSIGNED,0,0,MPI_COMM_WORLD);
+        MPI_Send(nonzero,histSize,MPI_INT,0,0,MPI_COMM_WORLD);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
