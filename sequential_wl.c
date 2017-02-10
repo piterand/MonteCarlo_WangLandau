@@ -59,40 +59,56 @@ void recalcE();                 // пересчет энергии для уда
 
 
 
-int main(void)
+int main( int argc, char **argv )
 {
     unsigned long seed=0;       // Random seed
-    printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
-    if (scanf("%lu",&seed) == 1){}
-    else{
-        printf("# Error! Failed to read integer seed!\n");
-        return 0;
+    int prec=0;                 // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
+    char filename[100];         // Имя файла для считывания энергий
+
+    if ( argc >= 4){
+        int _readRes=0;
+        _readRes+=sscanf(argv[1],"%lu",&seed);
+        _readRes+=sscanf(argv[2],"%u",&prec);
+        _readRes+=sscanf(argv[3],"%s",filename);
+        if (_readRes<3){
+            printf("# Error reading the console parameters!\n");
+            printf("# Please, input exactly 3 parameters devided by space: <seed> <precision> <filename>\n");
+            printf("# Or run the program without any params\n");
+            return 0;
+        }
+    } else {
+        printf("# Note, that you may pass the run parameters instead of keyboard typing.\n");
+        printf("# For this, just input exactly 3 parameters devided by space: <seed> <precision> <filename>\n");
+
+        printf("# Please, input random number seed from 1 to 4 294 967 295:  ");
+        if (scanf("%lu",&seed) == 1){}
+        else{
+            printf("# Error! Failed to read integer seed!\n");
+            return 0;
+        }
+
+        printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
+        if (scanf("%u",&prec) == 1){}
+        else{
+            printf("# Error! Failed to read integer precision!\n");
+            return 0;
+        }
+
+        printf("# Please, input target filename: ");
+        if( scanf("%s",filename)!=1){
+            printf("# Error! Failed to read file name!\n");
+            return 0;
+        }
     }
 
-    int prec=0;       // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
-    printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
-    if (scanf("%u",&prec) == 1){}
-    else{
-        printf("# Error! Failed to read integer precision!\n");
-        return 0;
-    }
+    srand(seed);
     PRECISION = pow(10,prec);   // !!Задание точности
-    printf("# Precision = %d",PRECISION);
-
-
-
-    char filename[100];
-    printf("# Please, input target filename: ");
-    if( scanf("%s",filename)==1){}
-    else{
-        printf("# Error! Failed to read file name!\n");
-        return 0;
-    }
-
     if (!readCSV(filename)){
         printf("# Error! File '%s' is unavaliable!\n",filename);
         return 0;
     }
+
+    printf("# seed = %lu  precision = %d  filename = %s\n",seed,PRECISION,filename);
 
 #ifdef DEBUG
     printf("# spins:");
@@ -131,7 +147,7 @@ int main(void)
     printf("\n");
 #endif
 
-    printf("\n#  initial energy = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
+    printf("# initial energy = %lf, emin = %lf, emax = %lf\n",e,emin,emax);
     
     unsigned ie;
     for(ie=0; ie<histSize; ie++){
@@ -141,8 +157,6 @@ int main(void)
         g[ie]=0;
         hist[ie]=0;
     }
-    
-    srand(seed);
 
     fflush(stdout);
 
