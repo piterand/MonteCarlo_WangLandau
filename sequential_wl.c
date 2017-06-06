@@ -40,6 +40,12 @@ double f;                       // Модификационный фактор (
 double factor = 0.8;            // Критерий плоскости гистограммы H
 unsigned nfinal = 24;           // число WL-циклов
 
+//
+bool saveGStofile = false;      // включение сохранения нижайших состояний в файл
+FILE *file1;                    //вывод GS в файл
+double E_GS=100000;             // хранение минимальной энергии, изначально задается очень большой
+//
+
 int PRECISION; //!!!теперь задается пользователем при запуске программы
                                 // Точность 1eX, где X - Сколько знаков учитывать в энергии после запятой
                                 // (1e0 - 0 знаков после запятой (для модели Изинга), 1e100 - 100 знаков после запятой)
@@ -88,7 +94,7 @@ int main( int argc, char **argv )
         }
 
         printf("# Please, chose precision X from 0 to 5(for example), where X - amount of numbers after dot. If you add 1, precision will iincrease 10 times: ");
-        if (scanf("%u",&prec) == 1){}
+        if (scanf("%d",&prec) == 1){}
         else{
             printf("# Error! Failed to read integer precision!\n");
             return 0;
@@ -108,7 +114,7 @@ int main( int argc, char **argv )
         return 0;
     }
 
-    printf("# seed = %lu  precision = %d  filename = %s\n",seed,PRECISION,filename);
+    printf("# seed = %lu  precision = %u  filename = %s\n",seed,PRECISION,filename);
 
 #ifdef DEBUG
     printf("# spins:");
@@ -160,8 +166,12 @@ int main( int argc, char **argv )
 
     fflush(stdout);
 
+
+
     mc();
     normalize();
+
+
     
     printf("# e  g[ie]  g[ie]/n  hist[ie]\n");
     for(ie=0; ie<histSize; ie++){
@@ -173,6 +183,7 @@ int main( int argc, char **argv )
             printf("%e  %e  %e  %d\n",(double)ie/PRECISION+emin,g[ie],g[ie]/n,hist[ie]);
         }
     }
+
     
     complete(); //очистка памяти
 }
@@ -320,10 +331,44 @@ void single(){
 
     int eoKey, enKey;               // номер столбика гистограммы энергий старой и новой
     
-    for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз, не знаю почему
+    for(la1=0; la1 <= n-1; la1++){  //цикл выполняется n раз
         la=rand()%n;                // выбираем случайный спин
         energyOld = e;              // записываем старую энергию
         rotate(la);                 // переворачиваем выбранный спин
+
+        if(saveGStofile){
+            // если что-то нужно вытащить из вычислений
+            if(e<=E_GS){
+                int iter=0;
+
+                file1 = fopen("GS.dat", "a");
+                fprintf(file1,"# spins state:");
+                for (iter=0;iter<n;iter++){
+                    fprintf(file1,"%d,",spins[iter]);
+                }
+                fprintf(file1,"\t %f \n",e);
+                E_GS=e;
+                fflush(stdout);
+
+                fclose(file1);
+
+            }
+        }
+
+            if(e<=672&&e>=673){
+                int iter=0;
+                file1 = fopen("GS.dat", "a");
+
+                fprintf(file1,"# spins state:");
+                for (iter=0;iter<n;iter++){
+                    fprintf(file1,"%d,",spins[iter]);
+                }
+                fprintf(file1,"\t %f \n",e);
+                fflush(stdout);
+
+                fclose(file1);
+
+            }
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
