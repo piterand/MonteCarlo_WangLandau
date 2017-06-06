@@ -44,6 +44,7 @@ unsigned nfinal = 24;           // число WL-циклов
 bool saveGStofile = false;      // включение сохранения нижайших состояний в файл
 FILE *file1;                    //вывод GS в файл
 double E_GS=100000;             // хранение минимальной энергии, изначально задается очень большой
+bool saveconfigurations = false;      // включение сохранения нижайших состояний в файл
 //
 
 int PRECISION; //!!!теперь задается пользователем при запуске программы
@@ -354,21 +355,6 @@ void single(){
 
             }
         }
-
-            if(e<=672&&e>=673){
-                int iter=0;
-                file1 = fopen("GS.dat", "a");
-
-                fprintf(file1,"# spins state:");
-                for (iter=0;iter<n;iter++){
-                    fprintf(file1,"%d,",spins[iter]);
-                }
-                fprintf(file1,"\t %f \n",e);
-                fflush(stdout);
-
-                fclose(file1);
-
-            }
 
         eoKey = (int)((energyOld-emin)*PRECISION); //вычисляем номер столбика гистограммы для старой энергии
         enKey = (int)((e-emin)*PRECISION);         //вычисляем номер столбика гистограммы для новой энергии
